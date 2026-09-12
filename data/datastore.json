@@ -1,0 +1,810 @@
+{
+  "sections": [
+    {
+      "id": "A12-B14",
+      "name": "Howrah - Bardhaman Line",
+      "length_km": 95,
+      "tracks": 2,
+      "max_speed_kmh": 130
+    },
+    {
+      "id": "B14-C02",
+      "name": "Bardhaman - Asansol Line",
+      "length_km": 106,
+      "tracks": 2,
+      "max_speed_kmh": 130
+    },
+    {
+      "id": "C02-C08",
+      "name": "Asansol - Dhanbad Line",
+      "length_km": 60,
+      "tracks": 2,
+      "max_speed_kmh": 110
+    },
+    {
+      "id": "C08-D15",
+      "name": "Dhanbad - Gaya Line",
+      "length_km": 201,
+      "tracks": 2,
+      "max_speed_kmh": 130
+    },
+    {
+      "id": "D15-E20",
+      "name": "Gaya - Pt. Deen Dayal Upadhyaya Line",
+      "length_km": 204,
+      "tracks": 2,
+      "max_speed_kmh": 130
+    }
+  ],
+  "assets": [
+    {
+      "id": "AST-101",
+      "type": "Track Rail Joint",
+      "section": "A12-B14",
+      "age_years": 8.5,
+      "criticality": "HIGH",
+      "last_maintenance": "2026-03-12",
+      "health_score": 62
+    },
+    {
+      "id": "AST-102",
+      "type": "Point Switch #14B",
+      "section": "A12-B14",
+      "age_years": 12,
+      "criticality": "CRITICAL",
+      "last_maintenance": "2025-11-05",
+      "health_score": 45
+    },
+    {
+      "id": "AST-201",
+      "type": "Automatic Interlocking Signal",
+      "section": "B14-C02",
+      "age_years": 4.2,
+      "criticality": "MEDIUM",
+      "last_maintenance": "2026-06-01",
+      "health_score": 78
+    },
+    {
+      "id": "AST-202",
+      "type": "OHE Overhead Line Support #88",
+      "section": "B14-C02",
+      "age_years": 9.1,
+      "criticality": "HIGH",
+      "last_maintenance": "2026-02-18",
+      "health_score": 58
+    },
+    {
+      "id": "AST-301",
+      "type": "Track Bed Ballast",
+      "section": "C02-C08",
+      "age_years": 15,
+      "criticality": "CRITICAL",
+      "last_maintenance": "2025-08-20",
+      "health_score": 38
+    },
+    {
+      "id": "AST-302",
+      "type": "Axle Counter Sensor Unit",
+      "section": "C02-C08",
+      "age_years": 2.5,
+      "criticality": "MEDIUM",
+      "last_maintenance": "2026-07-10",
+      "health_score": 88
+    },
+    {
+      "id": "AST-401",
+      "type": "Traction Transformer Substation",
+      "section": "C08-D15",
+      "age_years": 11.2,
+      "criticality": "HIGH",
+      "last_maintenance": "2026-01-14",
+      "health_score": 52
+    },
+    {
+      "id": "AST-501",
+      "type": "Girder Railway Bridge #42",
+      "section": "D15-E20",
+      "age_years": 24,
+      "criticality": "CRITICAL",
+      "last_maintenance": "2025-09-30",
+      "health_score": 41
+    }
+  ],
+  "tasks": [
+    {
+      "id": "TSK-001",
+      "asset_id": "AST-102",
+      "section": "A12-B14",
+      "department": "Engineering",
+      "task_type": "Switch & Crossover Deep Overhaul",
+      "duration_mins": 120,
+      "priority": "CRITICAL",
+      "deadline_hour": 10,
+      "status": "SCHEDULED",
+      "risk_score": 92,
+      "description": "Urgent rail switch realignment required on Down Line to prevent speed restrictions.",
+      "assigned_block": "BLK-101",
+      "assigned_section": "A12-B14",
+      "start_hour": 3,
+      "end_hour": 5,
+      "start_time": "03:00",
+      "end_time": "05:00"
+    },
+    {
+      "id": "TSK-002",
+      "asset_id": "AST-202",
+      "section": "B14-C02",
+      "department": "Traction / OHE",
+      "task_type": "OHE Catenary Wire Cantilever Adjustment",
+      "duration_mins": 90,
+      "priority": "HIGH",
+      "deadline_hour": 14,
+      "status": "SCHEDULED",
+      "risk_score": 75,
+      "description": "Overhead contact wire height deviation detected during high-speed pantograph test.",
+      "assigned_block": "BLK-201",
+      "assigned_section": "B14-C02",
+      "start_hour": 3.2,
+      "end_hour": 4.7,
+      "start_time": "03:12",
+      "end_time": "04:42"
+    },
+    {
+      "id": "TSK-003",
+      "asset_id": "AST-201",
+      "section": "B14-C02",
+      "department": "Signal & Telecom",
+      "task_type": "Relay Interlocking Calibration",
+      "duration_mins": 60,
+      "priority": "MEDIUM",
+      "deadline_hour": 18,
+      "status": "SCHEDULED",
+      "risk_score": 55,
+      "description": "Periodic calibration of automatic block signaling relays.",
+      "assigned_block": "BLK-202",
+      "assigned_section": "B14-C02",
+      "start_hour": 11.5,
+      "end_hour": 12.5,
+      "start_time": "11:30",
+      "end_time": "12:30"
+    },
+    {
+      "id": "TSK-004",
+      "asset_id": "AST-301",
+      "section": "C02-C08",
+      "department": "Engineering",
+      "task_type": "Ballast Cleaning Machine (BCM) Deep Tamping",
+      "duration_mins": 150,
+      "priority": "CRITICAL",
+      "deadline_hour": 8,
+      "status": "SCHEDULED",
+      "risk_score": 88,
+      "description": "Heavy track bed settlement; required before monsoon speed clearance.",
+      "assigned_block": "BLK-301",
+      "assigned_section": "C02-C08",
+      "start_hour": 0.5,
+      "end_hour": 3,
+      "start_time": "00:30",
+      "end_time": "03:00"
+    },
+    {
+      "id": "TSK-005",
+      "asset_id": "AST-401",
+      "section": "C08-D15",
+      "department": "Traction / OHE",
+      "task_type": "Substation Circuit Breaker Replacement",
+      "duration_mins": 105,
+      "priority": "HIGH",
+      "deadline_hour": 16,
+      "status": "SCHEDULED",
+      "risk_score": 72,
+      "description": "Preventive replacement of thermal damaged vacuum circuit breaker.",
+      "assigned_block": "BLK-401",
+      "assigned_section": "C08-D15",
+      "start_hour": 1,
+      "end_hour": 2.75,
+      "start_time": "01:00",
+      "end_time": "02:45"
+    },
+    {
+      "id": "TSK-006",
+      "asset_id": "AST-501",
+      "section": "D15-E20",
+      "department": "Engineering",
+      "task_type": "Bridge Pier Expansion Joint Inspection",
+      "duration_mins": 90,
+      "priority": "HIGH",
+      "deadline_hour": 20,
+      "status": "SCHEDULED",
+      "risk_score": 68,
+      "description": "Structural vibration check and bolt tightening on main girder bridge.",
+      "assigned_block": "BLK-501",
+      "assigned_section": "D15-E20",
+      "start_hour": 5,
+      "end_hour": 6.5,
+      "start_time": "05:00",
+      "end_time": "06:30"
+    },
+    {
+      "id": "TSK-007",
+      "asset_id": "AST-302",
+      "section": "C02-C08",
+      "department": "Signal & Telecom",
+      "task_type": "Track Circuit Sensor Calibration",
+      "duration_mins": 45,
+      "priority": "LOW",
+      "deadline_hour": 22,
+      "status": "SCHEDULED",
+      "risk_score": 35,
+      "description": "Routine diagnostic test of digital axle counters.",
+      "assigned_block": "BLK-302",
+      "assigned_section": "C02-C08",
+      "start_hour": 12.5,
+      "end_hour": 13.25,
+      "start_time": "12:30",
+      "end_time": "13:15"
+    }
+  ],
+  "trains": [
+    {
+      "train_id": "12301",
+      "train_name": "Howrah Rajdhani Express",
+      "origin": "Howrah Jn (HWH)",
+      "destination": "New Delhi (NDLS)",
+      "section": "A12-B14",
+      "arrival_hour": 0.5,
+      "departure_hour": 1.75,
+      "service_priority": 1
+    },
+    {
+      "train_id": "12301",
+      "train_name": "Howrah Rajdhani Express",
+      "origin": "Howrah Jn (HWH)",
+      "destination": "New Delhi (NDLS)",
+      "section": "B14-C02",
+      "arrival_hour": 1.8,
+      "departure_hour": 3,
+      "service_priority": 1
+    },
+    {
+      "train_id": "12301",
+      "train_name": "Howrah Rajdhani Express",
+      "origin": "Howrah Jn (HWH)",
+      "destination": "New Delhi (NDLS)",
+      "section": "C02-C08",
+      "arrival_hour": 3.1,
+      "departure_hour": 4,
+      "service_priority": 1
+    },
+    {
+      "train_id": "12259",
+      "train_name": "Sealdah Duronto Express",
+      "origin": "Sealdah (SDAH)",
+      "destination": "Bikaner Jn (BKN)",
+      "section": "A12-B14",
+      "arrival_hour": 6,
+      "departure_hour": 7.2,
+      "service_priority": 1
+    },
+    {
+      "train_id": "12259",
+      "train_name": "Sealdah Duronto Express",
+      "origin": "Sealdah (SDAH)",
+      "destination": "Bikaner Jn (BKN)",
+      "section": "B14-C02",
+      "arrival_hour": 7.3,
+      "departure_hour": 8.5,
+      "service_priority": 1
+    },
+    {
+      "train_id": "12305",
+      "train_name": "Kolkata Rajdhani Express",
+      "origin": "Howrah Jn (HWH)",
+      "destination": "New Delhi (NDLS)",
+      "section": "C08-D15",
+      "arrival_hour": 10,
+      "departure_hour": 11.5,
+      "service_priority": 1
+    },
+    {
+      "train_id": "12305",
+      "train_name": "Kolkata Rajdhani Express",
+      "origin": "Howrah Jn (HWH)",
+      "destination": "New Delhi (NDLS)",
+      "section": "D15-E20",
+      "arrival_hour": 11.6,
+      "departure_hour": 13,
+      "service_priority": 1
+    },
+    {
+      "train_id": "12313",
+      "train_name": "Sealdah Rajdhani Express",
+      "origin": "Sealdah (SDAH)",
+      "destination": "New Delhi (NDLS)",
+      "section": "A12-B14",
+      "arrival_hour": 16.5,
+      "departure_hour": 17.8,
+      "service_priority": 1
+    },
+    {
+      "train_id": "12313",
+      "train_name": "Sealdah Rajdhani Express",
+      "origin": "Sealdah (SDAH)",
+      "destination": "New Delhi (NDLS)",
+      "section": "B14-C02",
+      "arrival_hour": 17.9,
+      "departure_hour": 19.1,
+      "service_priority": 1
+    },
+    {
+      "train_id": "13005",
+      "train_name": "Amritsar Mail",
+      "origin": "Howrah Jn (HWH)",
+      "destination": "Amritsar Jn (ASR)",
+      "section": "A12-B14",
+      "arrival_hour": 8,
+      "departure_hour": 9.5,
+      "service_priority": 2
+    },
+    {
+      "train_id": "13005",
+      "train_name": "Amritsar Mail",
+      "origin": "Howrah Jn (HWH)",
+      "destination": "Amritsar Jn (ASR)",
+      "section": "B14-C02",
+      "arrival_hour": 9.6,
+      "departure_hour": 11,
+      "service_priority": 2
+    },
+    {
+      "train_id": "13005",
+      "train_name": "Amritsar Mail",
+      "origin": "Howrah Jn (HWH)",
+      "destination": "Amritsar Jn (ASR)",
+      "section": "C02-C08",
+      "arrival_hour": 11.1,
+      "departure_hour": 12.2,
+      "service_priority": 2
+    },
+    {
+      "train_id": "12381",
+      "train_name": "Poorva Express",
+      "origin": "Howrah Jn (HWH)",
+      "destination": "New Delhi (NDLS)",
+      "section": "C08-D15",
+      "arrival_hour": 13.5,
+      "departure_hour": 15.2,
+      "service_priority": 2
+    },
+    {
+      "train_id": "12381",
+      "train_name": "Poorva Express",
+      "origin": "Howrah Jn (HWH)",
+      "destination": "New Delhi (NDLS)",
+      "section": "D15-E20",
+      "arrival_hour": 15.3,
+      "departure_hour": 17,
+      "service_priority": 2
+    },
+    {
+      "train_id": "N-BOST",
+      "train_name": "Coal Rake Freight Special",
+      "origin": "Dhanbad Goods Yard",
+      "destination": "Kolaghat Thermal Plant",
+      "section": "C02-C08",
+      "arrival_hour": 5,
+      "departure_hour": 6.8,
+      "service_priority": 3
+    },
+    {
+      "train_id": "N-BOXN",
+      "train_name": "Container Freight Express",
+      "origin": "Kolkata Port Terminal",
+      "destination": "Dadri ICD",
+      "section": "C08-D15",
+      "arrival_hour": 7,
+      "departure_hour": 9,
+      "service_priority": 3
+    },
+    {
+      "train_id": "N-BCN",
+      "train_name": "Foodgrain Special Freight",
+      "origin": "FCI Godown Mughalsarai",
+      "destination": "FCI Godown Dankuni",
+      "section": "D15-E20",
+      "arrival_hour": 18,
+      "departure_hour": 20,
+      "service_priority": 3
+    }
+  ],
+  "block_windows": [
+    {
+      "id": "BLK-101",
+      "section": "A12-B14",
+      "start_hour": 2,
+      "end_hour": 5.5,
+      "permitted_departments": [
+        "Engineering",
+        "Signal & Telecom",
+        "Traction / OHE"
+      ],
+      "max_duration_mins": 210,
+      "status": "ASSIGNED",
+      "assigned_task_id": "TSK-001"
+    },
+    {
+      "id": "BLK-102",
+      "section": "A12-B14",
+      "start_hour": 10,
+      "end_hour": 16,
+      "permitted_departments": [
+        "Engineering",
+        "Signal & Telecom"
+      ],
+      "max_duration_mins": 360,
+      "status": "AVAILABLE",
+      "assigned_task_id": null
+    },
+    {
+      "id": "BLK-201",
+      "section": "B14-C02",
+      "start_hour": 3.2,
+      "end_hour": 7,
+      "permitted_departments": [
+        "Engineering",
+        "Traction / OHE"
+      ],
+      "max_duration_mins": 228,
+      "status": "ASSIGNED",
+      "assigned_task_id": "TSK-002"
+    },
+    {
+      "id": "BLK-202",
+      "section": "B14-C02",
+      "start_hour": 11.5,
+      "end_hour": 17,
+      "permitted_departments": [
+        "Signal & Telecom",
+        "Traction / OHE"
+      ],
+      "max_duration_mins": 330,
+      "status": "ASSIGNED",
+      "assigned_task_id": "TSK-003"
+    },
+    {
+      "id": "BLK-301",
+      "section": "C02-C08",
+      "start_hour": 0.5,
+      "end_hour": 3,
+      "permitted_departments": [
+        "Engineering",
+        "Signal & Telecom"
+      ],
+      "max_duration_mins": 150,
+      "status": "ASSIGNED",
+      "assigned_task_id": "TSK-004"
+    },
+    {
+      "id": "BLK-302",
+      "section": "C02-C08",
+      "start_hour": 12.5,
+      "end_hour": 16,
+      "permitted_departments": [
+        "Engineering",
+        "Traction / OHE",
+        "Signal & Telecom"
+      ],
+      "max_duration_mins": 210,
+      "status": "ASSIGNED",
+      "assigned_task_id": "TSK-007"
+    },
+    {
+      "id": "BLK-401",
+      "section": "C08-D15",
+      "start_hour": 1,
+      "end_hour": 6.5,
+      "permitted_departments": [
+        "Traction / OHE",
+        "Engineering"
+      ],
+      "max_duration_mins": 330,
+      "status": "ASSIGNED",
+      "assigned_task_id": "TSK-005"
+    },
+    {
+      "id": "BLK-402",
+      "section": "C08-D15",
+      "start_hour": 15.5,
+      "end_hour": 20,
+      "permitted_departments": [
+        "Signal & Telecom",
+        "Traction / OHE"
+      ],
+      "max_duration_mins": 270,
+      "status": "AVAILABLE",
+      "assigned_task_id": null
+    },
+    {
+      "id": "BLK-501",
+      "section": "D15-E20",
+      "start_hour": 2,
+      "end_hour": 7,
+      "permitted_departments": [
+        "Engineering",
+        "Signal & Telecom"
+      ],
+      "max_duration_mins": 300,
+      "status": "ASSIGNED",
+      "assigned_task_id": "TSK-006"
+    },
+    {
+      "id": "BLK-502",
+      "section": "D15-E20",
+      "start_hour": 13.5,
+      "end_hour": 15,
+      "permitted_departments": [
+        "Engineering",
+        "Traction / OHE"
+      ],
+      "max_duration_mins": 90,
+      "status": "AVAILABLE",
+      "assigned_task_id": null
+    }
+  ],
+  "resources": [
+    {
+      "id": "RES-ENG-1",
+      "department": "Engineering",
+      "skill": "Track Heavy Maintenance Gang",
+      "team_name": "Howrah Track Unit 1",
+      "available_start_hour": 0,
+      "available_end_hour": 24
+    },
+    {
+      "id": "RES-ENG-2",
+      "department": "Engineering",
+      "skill": "Bridge & Structural Team",
+      "team_name": "Dhanbad Bridge Unit",
+      "available_start_hour": 0,
+      "available_end_hour": 24
+    },
+    {
+      "id": "RES-ST-1",
+      "department": "Signal & Telecom",
+      "skill": "Automatic Interlocking Crew",
+      "team_name": "Bardhaman Signal Gang",
+      "available_start_hour": 0,
+      "available_end_hour": 24
+    },
+    {
+      "id": "RES-ST-2",
+      "department": "Signal & Telecom",
+      "skill": "Axle & Sensor Diagnostics",
+      "team_name": "Asansol Telecom Unit",
+      "available_start_hour": 0,
+      "available_end_hour": 24
+    },
+    {
+      "id": "RES-OHE-1",
+      "department": "Traction / OHE",
+      "skill": "Tower Wagon Electrical Crew",
+      "team_name": "Howrah Traction Wing",
+      "available_start_hour": 0,
+      "available_end_hour": 24
+    },
+    {
+      "id": "RES-OHE-2",
+      "department": "Traction / OHE",
+      "skill": "Substation High-Voltage Team",
+      "team_name": "Gaya Electrical Substation Crew",
+      "available_start_hour": 0,
+      "available_end_hour": 24
+    }
+  ],
+  "incidents": [],
+  "current_schedule": [
+    {
+      "task_id": "TSK-004",
+      "task_name": "Ballast Cleaning Machine (BCM) Deep Tamping",
+      "department": "Engineering",
+      "section": "C02-C08",
+      "block_id": "BLK-301",
+      "start_hour": 0.5,
+      "end_hour": 3,
+      "duration_mins": 150,
+      "assigned_resources": [
+        "Howrah Track Unit 1",
+        "Dhanbad Bridge Unit"
+      ],
+      "priority": "CRITICAL",
+      "is_emergency": false,
+      "explanation": "TSK-004 was assigned to BLK-301 from 00:30–03:00 on section C02-C08 to resolve critical safety defect before deadline. Window BLK-301 permits Engineering operations, accommodates the required 150-minute duration, and does not overlap scheduled train movements.",
+      "train_conflicts_avoided": 3
+    },
+    {
+      "task_id": "TSK-005",
+      "task_name": "Substation Circuit Breaker Replacement",
+      "department": "Traction / OHE",
+      "section": "C08-D15",
+      "block_id": "BLK-401",
+      "start_hour": 1,
+      "end_hour": 2.75,
+      "duration_mins": 105,
+      "assigned_resources": [
+        "Howrah Traction Wing",
+        "Gaya Electrical Substation Crew"
+      ],
+      "priority": "HIGH",
+      "is_emergency": false,
+      "explanation": "TSK-005 was assigned to BLK-401 from 01:00–02:45 on section C08-D15. Window BLK-401 permits Traction / OHE operations, accommodates the required 105-minute duration, and does not overlap scheduled train movements.",
+      "train_conflicts_avoided": 3
+    },
+    {
+      "task_id": "TSK-001",
+      "task_name": "Switch & Crossover Deep Overhaul",
+      "department": "Engineering",
+      "section": "A12-B14",
+      "block_id": "BLK-101",
+      "start_hour": 3,
+      "end_hour": 5,
+      "duration_mins": 120,
+      "assigned_resources": [
+        "Howrah Track Unit 1",
+        "Dhanbad Bridge Unit"
+      ],
+      "priority": "CRITICAL",
+      "is_emergency": false,
+      "explanation": "TSK-001 was assigned to BLK-101 from 03:00–05:00 on section A12-B14 to resolve critical safety defect before deadline. Window BLK-101 permits Engineering operations, accommodates the required 120-minute duration, and does not overlap scheduled train movements.",
+      "train_conflicts_avoided": 4
+    },
+    {
+      "task_id": "TSK-002",
+      "task_name": "OHE Catenary Wire Cantilever Adjustment",
+      "department": "Traction / OHE",
+      "section": "B14-C02",
+      "block_id": "BLK-201",
+      "start_hour": 3.2,
+      "end_hour": 4.7,
+      "duration_mins": 90,
+      "assigned_resources": [
+        "Howrah Traction Wing",
+        "Gaya Electrical Substation Crew"
+      ],
+      "priority": "HIGH",
+      "is_emergency": false,
+      "explanation": "TSK-002 was assigned to BLK-201 from 03:12–04:42 on section B14-C02. Window BLK-201 permits Traction / OHE operations, accommodates the required 90-minute duration, and does not overlap scheduled train movements.",
+      "train_conflicts_avoided": 4
+    },
+    {
+      "task_id": "TSK-006",
+      "task_name": "Bridge Pier Expansion Joint Inspection",
+      "department": "Engineering",
+      "section": "D15-E20",
+      "block_id": "BLK-501",
+      "start_hour": 5,
+      "end_hour": 6.5,
+      "duration_mins": 90,
+      "assigned_resources": [
+        "Howrah Track Unit 1",
+        "Dhanbad Bridge Unit"
+      ],
+      "priority": "HIGH",
+      "is_emergency": false,
+      "explanation": "TSK-006 was assigned to BLK-501 from 05:00–06:30 on section D15-E20. Window BLK-501 permits Engineering operations, accommodates the required 90-minute duration, and does not overlap scheduled train movements.",
+      "train_conflicts_avoided": 3
+    },
+    {
+      "task_id": "TSK-003",
+      "task_name": "Relay Interlocking Calibration",
+      "department": "Signal & Telecom",
+      "section": "B14-C02",
+      "block_id": "BLK-202",
+      "start_hour": 11.5,
+      "end_hour": 12.5,
+      "duration_mins": 60,
+      "assigned_resources": [
+        "Bardhaman Signal Gang",
+        "Asansol Telecom Unit"
+      ],
+      "priority": "MEDIUM",
+      "is_emergency": false,
+      "explanation": "TSK-003 was assigned to BLK-202 from 11:30–12:30 on section B14-C02. Window BLK-202 permits Signal & Telecom operations, accommodates the required 60-minute duration, and does not overlap scheduled train movements.",
+      "train_conflicts_avoided": 4
+    },
+    {
+      "task_id": "TSK-007",
+      "task_name": "Track Circuit Sensor Calibration",
+      "department": "Signal & Telecom",
+      "section": "C02-C08",
+      "block_id": "BLK-302",
+      "start_hour": 12.5,
+      "end_hour": 13.25,
+      "duration_mins": 45,
+      "assigned_resources": [
+        "Bardhaman Signal Gang",
+        "Asansol Telecom Unit"
+      ],
+      "priority": "LOW",
+      "is_emergency": false,
+      "explanation": "TSK-007 was assigned to BLK-302 from 12:30–13:15 on section C02-C08. Window BLK-302 permits Signal & Telecom operations, accommodates the required 45-minute duration, and does not overlap scheduled train movements.",
+      "train_conflicts_avoided": 3
+    }
+  ],
+  "plan_history": [
+    {
+      "plan_id": "PLAN-0004",
+      "timestamp": "2026-09-13 01:06:28",
+      "triggered_by": "MANUAL_TRIGGER",
+      "status": "OPTIMAL",
+      "solve_time_seconds": 0.001,
+      "tasks_considered": 7,
+      "tasks_scheduled": 7,
+      "tasks_unscheduled": 0,
+      "conflicts": 0,
+      "utilization_pct": 26.6,
+      "delay_saved_pct": 100,
+      "summary": "CP-SAT scheduled 7 maintenance tasks across 7 available block windows while avoiding 14 protected train movements."
+    },
+    {
+      "plan_id": "PLAN-0003",
+      "timestamp": "2026-09-13 01:05:24",
+      "triggered_by": "MANUAL_TRIGGER",
+      "status": "OPTIMAL",
+      "solve_time_seconds": 0.001,
+      "tasks_considered": 7,
+      "tasks_scheduled": 7,
+      "tasks_unscheduled": 0,
+      "conflicts": 0,
+      "utilization_pct": 26.6,
+      "delay_saved_pct": 100,
+      "summary": "CP-SAT scheduled 7 maintenance tasks across 7 available block windows while avoiding 14 protected train movements."
+    },
+    {
+      "plan_id": "PLAN-0002",
+      "timestamp": "2026-09-13 01:04:38",
+      "triggered_by": "MANUAL_TRIGGER",
+      "status": "OPTIMAL",
+      "solve_time_seconds": 0.001,
+      "tasks_considered": 7,
+      "tasks_scheduled": 7,
+      "tasks_unscheduled": 0,
+      "conflicts": 0,
+      "utilization_pct": 26.6,
+      "delay_saved_pct": 100,
+      "summary": "CP-SAT scheduled 7 maintenance tasks across 7 available block windows while avoiding 14 protected train movements."
+    },
+    {
+      "plan_id": "PLAN-0001",
+      "timestamp": "2026-09-12 18:16:54",
+      "triggered_by": "MANUAL_TRIGGER",
+      "status": "OPTIMAL",
+      "solve_time_seconds": 0,
+      "tasks_considered": 7,
+      "tasks_scheduled": 7,
+      "tasks_unscheduled": 0,
+      "conflicts": 0,
+      "utilization_pct": 26.6,
+      "delay_saved_pct": 100,
+      "summary": "CP-SAT scheduled 7 maintenance tasks across 7 available block windows while avoiding 14 protected train movements."
+    }
+  ],
+  "baseline_comparison": {
+    "manual_conflicts": 5,
+    "optimized_conflicts": 0,
+    "manual_total_delay_mins": 539,
+    "optimized_total_delay_mins": 0,
+    "manual_block_utilization_pct": 26.6,
+    "optimized_block_utilization_pct": 26.6,
+    "manual_critical_completed": 2,
+    "optimized_critical_completed": 2,
+    "total_critical_tasks": 2,
+    "delay_reduction_pct": 100
+  },
+  "latest_summary": "CP-SAT scheduled 7 maintenance tasks across 7 available block windows while avoiding 14 protected train movements.",
+  "data_source": "DEMO_SCENARIO",
+  "scenario_name": "Howrah – Pt. DDU Trunk Line (Demo Tasks)",
+  "data_source_label": "Demo Scenario (7 Sample Tasks)",
+  "last_optimized_at": "2026-09-13 01:06:28",
+  "last_solver_status": "OPTIMAL",
+  "latest_diff": null
+}

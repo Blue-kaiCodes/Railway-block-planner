@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Railway Block Planner</title>
+  <meta name="description" content="Enterprise Decision-Support Platform for Indian Railways Corridor Maintenance & Block Planning">
+  <meta property="og:title" content="Railway Block Planner">
+  <meta property="og:description" content="Enterprise Decision-Support Platform for Indian Railways Corridor Maintenance & Block Planning">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- Left Sidebar -->
+    <aside class="sidebar">
+      <div>
+        <div class="sidebar-header">
+          <div class="brand-title">
+            <i class="fa-solid fa-train-subway"></i>
+            <span>RAILWAY BLOCK PLANNER</span>
+          </div>
+          <div class="brand-subtitle">Ministry of Railways | PS 26027</div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <div class="nav-group-title">Operations</div>
+          <div class="nav-item active" onclick="switchTab('dashboard', this)">
+            <i class="fa-solid fa-gauge-high"></i> Operations Overview
+          </div>
+          <div class="nav-item" onclick="switchTab('planResult', this)">
+            <i class="fa-solid fa-square-poll-vertical"></i> Latest Plan Result
+          </div>
+          <div class="nav-item" onclick="switchTab('corridor', this)">
+            <i class="fa-solid fa-route"></i> Network & Sections
+          </div>
+
+          <div class="nav-group-title">Schedules & Demands</div>
+          <div class="nav-item" onclick="switchTab('tasks', this)">
+            <i class="fa-solid fa-list-check"></i> Maintenance Tasks
+          </div>
+          <div class="nav-item" onclick="switchTab('trains', this)">
+            <i class="fa-solid fa-train"></i> Train Timetable
+          </div>
+          <div class="nav-item" onclick="switchTab('blocks', this)">
+            <i class="fa-solid fa-calendar-days"></i> Block Windows
+          </div>
+          <div class="nav-item" onclick="switchTab('stations', this)">
+            <i class="fa-solid fa-map-location-dot"></i> Station Directory
+          </div>
+
+          <div class="nav-group-title">Optimization & Audit</div>
+          <div class="nav-item" onclick="switchTab('explain', this)">
+            <i class="fa-solid fa-file-contract"></i> Explainability Log
+          </div>
+          <div class="nav-item" onclick="switchTab('comparison', this)">
+            <i class="fa-solid fa-chart-column"></i> Baseline Benchmark
+          </div>
+          <div class="nav-item" onclick="switchTab('history', this)">
+            <i class="fa-solid fa-clock-rotate-left"></i> Plan History
+          </div>
+        </nav>
+      </div>
+
+      <div class="sidebar-footer">
+        <div><span class="status-indicator"></span> <strong>Central Trunk Line</strong></div>
+        <div style="margin-top:2px;">OR-Tools Solver: <span id="sidebarEngineStatus">READY</span></div>
+      </div>
+    </aside>
+
+    <!-- Main Content Wrapper -->
+    <div class="main-wrapper">
+      
+      <!-- Top Header -->
+      <header class="top-header">
+        <div class="header-title-area">
+          <div>
+            <div class="header-breadcrumb" style="display:flex; align-items:center; gap:8px;">
+              <span>Network Operations / Zone 4</span>
+              <span id="dataSourceBadge" class="data-source-badge badge-demo"><i class="fa-solid fa-database"></i> DEMO SCENARIO</span>
+            </div>
+            <h2>Howrah – Pt. Deen Dayal Upadhyaya Corridor</h2>
+          </div>
+        </div>
+
+        <div class="header-meta">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <label for="scenarioSelector" style="font-size:11px; font-weight:600; color:var(--text-secondary);">Scenario:</label>
+            <select id="scenarioSelector" class="select-filter" style="font-size:11px; padding:3px 6px;" onchange="handleScenarioChange(this.value)">
+              <option value="demo" selected>Demo Scenario (Zone 4)</option>
+              <option value="empty">Empty Operational Scenario</option>
+              <option value="imported">Imported Scenario</option>
+            </select>
+          </div>
+          <span><i class="fa-regular fa-clock"></i> <span id="liveOperatingTime">10:30:00 IST</span></span>
+          <span id="solverStateIndicator" style="display:inline-flex; align-items:center; gap:4px; font-size:11px; color:var(--text-secondary);"><span class="dot dot-gray" id="solverStateDot"></span> <span id="solverStateText">Solver Ready</span></span>
+        </div>
+
+        <div class="header-actions">
+          <button id="importDataBtn" class="btn btn-secondary" onclick="openImportModal()"><i class="fa-solid fa-file-import"></i> Import</button>
+          <button id="clearPlanHeaderBtn" class="btn btn-secondary" onclick="confirmClearPlan()"><i class="fa-solid fa-trash-can"></i> Clear Plan</button>
+          <button id="revertPlanBtn" class="btn btn-secondary" style="display:none;" onclick="triggerRevertPlan()"><i class="fa-solid fa-rotate-left"></i> Revert Plan</button>
+          <button class="btn btn-secondary" onclick="exportCSV()"><i class="fa-solid fa-download"></i> Export Plan</button>
+          <button id="generatePlanBtn" class="btn btn-primary" onclick="triggerOptimize()"><i class="fa-solid fa-circle-play" id="generatePlanIcon"></i> <span id="generatePlanBtnText">Generate Plan</span></button>
+          <button class="btn btn-danger" onclick="openDefectModal()"><i class="fa-solid fa-triangle-exclamation"></i> Inject Defect</button>
+        </div>
+      </header>
+
+      <!-- Scrollable Content Body -->
+      <div class="content-body">
+
+        <!-- Operational Alert Banner -->
+        <div id="emergencyBanner" class="alert-banner" style="display: none;">
+          <div class="alert-content">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <div>
+              <span class="alert-title" id="emergencyTitle">CRITICAL OPERATIONAL ALERT: Emergency Defect Injected</span>
+              <div class="alert-desc" id="emergencyDesc">Dynamic re-optimization recalculated affected block windows while preserving express train safety isolation.</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-secondary btn-xs" onclick="viewPlanDiff()">View Plan Diff</button>
+            <button class="btn btn-secondary btn-xs" onclick="closeEmergencyBanner()">Dismiss</button>
+          </div>
+        </div>
+
+        <!-- Scenario Context Strip (Explicit State Clarity) -->
+        <div class="scenario-context-strip">
+          <div class="scenario-context-meta">
+            <div class="scenario-meta-item">
+              <span class="scenario-meta-label">Corridor:</span>
+              <span class="scenario-meta-value" id="stripCorridorName">Howrah – Pt. Deen Dayal Upadhyaya Trunk Line</span>
+            </div>
+            <div class="scenario-meta-item">
+              <span class="scenario-meta-label">Data Source:</span>
+              <span class="badge-label badge-green" style="font-size:10px; font-weight:700;"><i class="fa-solid fa-database"></i> DEMO / REPRESENTATIVE TRAIN DATA</span>
+            </div>
+            <div class="scenario-meta-item">
+              <span class="scenario-meta-label">Last Optimization:</span>
+              <span class="scenario-meta-value" id="stripLastOpt" style="color:var(--text-secondary);">Not Run</span>
+            </div>
+            <div class="scenario-meta-item">
+              <span class="scenario-meta-label">Optimization Status:</span>
+              <span id="stripOptStatus" class="semantic-text text-low"><span class="dot dot-gray" id="stripOptDot"></span> <span id="stripOptText">Not Run</span></span>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button id="stripQuickLoadTasksBtn" class="btn btn-secondary btn-xs" style="display:none;" onclick="quickLoadSampleTasks()"><i class="fa-solid fa-plus-circle"></i> Load 7 Sample Tasks</button>
+            <button class="btn btn-secondary btn-xs" onclick="switchTab('planResult', document.querySelectorAll('.nav-item')[1])"><i class="fa-solid fa-square-poll-vertical"></i> View Latest Plan Result</button>
+          </div>
+        </div>
+
+        <!-- Compact Operational Summary Bar -->
+        <div class="summary-bar">
+          <div class="summary-item">
+            <div class="summary-label">Maintenance Tasks</div>
+            <div class="summary-value-row">
+              <span class="summary-value" id="kpiTasks">0</span>
+              <span class="summary-subtext">Registered</span>
+            </div>
+          </div>
+
+          <div class="summary-item">
+            <div class="summary-label">Critical Defects</div>
+            <div class="summary-value-row">
+              <span class="summary-value" id="kpiDefects" style="color:var(--accent-red);">0</span>
+              <span class="summary-subtext"><span class="dot dot-red"></span> Priority 1</span>
+            </div>
+          </div>
+
+          <div class="summary-item">
+            <div class="summary-label">Scheduled Blocks</div>
+            <div class="summary-value-row">
+              <span class="summary-value" id="kpiScheduled" style="color:var(--accent-green);">0</span>
+              <span class="summary-subtext" id="kpiStatus">Conflict-Free</span>
+            </div>
+          </div>
+
+          <div class="summary-item">
+            <div class="summary-label">Available Block Windows</div>
+            <div class="summary-value-row">
+              <span class="summary-value" id="kpiAvailableWindows" style="color:var(--text-primary);">10</span>
+              <span class="summary-subtext">Network Slots</span>
+            </div>
+          </div>
+
+          <div class="summary-item">
+            <div class="summary-label">Unscheduled Backlog</div>
+            <div class="summary-value-row">
+              <span class="summary-value" id="kpiUnscheduled" style="color:var(--accent-amber);">0</span>
+              <span class="summary-subtext" id="kpiUnscheduledSub">Pending Slot</span>
+            </div>
+          </div>
+
+          <div class="summary-item">
+            <div class="summary-label">Corridor Conflicts</div>
+            <div class="summary-value-row">
+              <span class="summary-value" id="kpiConflicts" style="color:var(--accent-green);">0</span>
+              <span class="summary-subtext" id="kpiConflictsSub">Zero Clashes</span>
+            </div>
+          </div>
+
+          <div class="summary-item">
+            <div class="summary-label">Train Movements</div>
+            <div class="summary-value-row">
+              <span class="summary-value" id="kpiTrains">17</span>
+              <span class="summary-subtext">Protected Services</span>
+            </div>
+          </div>
+
+          <div class="summary-item">
+            <div class="summary-label">Window Utilization</div>
+            <div class="summary-value-row">
+              <span class="summary-value" id="kpiUtil">0.0%</span>
+              <span class="summary-subtext" id="kpiUtilDelta" style="color:var(--accent-green);">Awaiting Plan</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 1: OPERATIONS OVERVIEW (GANTT TIMELINE) -->
+        <main id="tabDashboard" class="tab-content">
+
+          <!-- SECTION 1: INPUT DATA & OPERATIONAL CONSTRAINTS -->
+          <div class="overview-section-group" id="overviewInputSection">
+            <div class="overview-section-header">
+              <div class="overview-section-title">
+                <i class="fa-solid fa-layer-group" style="color:var(--accent-green);"></i> Input Data & Operational Constraints
+              </div>
+              <div class="overview-section-subtitle">
+                Corridor baseline inputs fed into the OR-Tools CP-SAT optimizer
+              </div>
+            </div>
+
+            <div class="overview-input-grid">
+              <!-- Card 1: Maintenance Tasks (Work Waiting to be Planned) -->
+              <div class="overview-card" id="overviewCardTasks">
+                <div>
+                  <div class="overview-card-header">
+                    <div class="overview-card-title">
+                      <i class="fa-solid fa-screwdriver-wrench" style="color:var(--accent-amber);"></i> Maintenance Tasks
+                    </div>
+                    <span id="overviewTaskCountBadge" class="badge-label badge-amber">7 Registered</span>
+                  </div>
+                  <div class="overview-card-desc">Work & defects waiting to be planned</div>
+                  <div class="overview-card-stats">
+                    <div class="overview-stat-row">
+                      <span class="overview-stat-label">Registered Tasks</span>
+                      <span class="overview-stat-val" id="overviewTaskTotal">7 Tasks</span>
+                    </div>
+                    <div class="overview-stat-row">
+                      <span class="overview-stat-label">Critical Defects (P1)</span>
+                      <span class="overview-stat-val" id="overviewTaskCritical" style="color:var(--accent-red); font-weight:700;"><span class="dot dot-red"></span> 2 Critical</span>
+                    </div>
+                    <div class="overview-stat-row">
+                      <span class="overview-stat-label">Priority Breakdown</span>
+                      <span class="overview-stat-val" id="overviewTaskPrio">2 High | 2 Med | 1 Low</span>
+                    </div>
+                    <div class="overview-stat-row">
+                      <span class="overview-stat-label">Planning Allocation</span>
+                      <span class="overview-stat-val" id="overviewTaskPlanningStatus">0 Scheduled / 7 Pending</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="overview-card-footer">
+                  <span class="overview-footer-note">Civil, TRD, S&T Backlog</span>
+                  <a href="javascript:void(0)" onclick="switchTab('tasks', document.querySelectorAll('.nav-item')[3])">Manage Tasks &rarr;</a>
+                </div>
+              </div>
+
+              <!-- Card 2: Block Windows (Available Planning Opportunities) -->
+              <div class="overview-card" id="overviewCardWindows">
+                <div>
+                  <div class="overview-card-header">
+                    <div class="overview-card-title">
+                      <i class="fa-solid fa-clock" style="color:var(--accent-green);"></i> Block Windows
+                    </div>
+                    <span id="overviewWinCountBadge" class="badge-label badge-green">10 Available</span>
+                  </div>
+                  <div class="overview-card-desc">Available planning opportunities</div>
+                  <div class="overview-card-stats">
+                    <div class="overview-stat-row">
+                      <span class="overview-stat-label">Sanctioned Windows</span>
+                      <span class="overview-stat-val" id="overviewWinTotal">10 Windows</span>
+                    </div>
+                    <div class="overview-stat-row">
+                      <span class="overview-stat-label">Allocated Windows</span>
+                      <span class="overview-stat-val" id="overviewWinAssigned">0 Assigned</span>
+                    </div>
+                    <div class="overview-stat-row">
+                      <span class="overview-stat-label">Available Slots</span>
+                      <span class="overview-stat-val" id="overviewWinRemaining">10 Available</span>
+                    </div>
+                    <div class="overview-stat-row">
+                      <span class="overview-stat-label">Permitted Depts</span>
+                      <span class="overview-stat-val">ENG, TRD, S&T</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="overview-card-footer">
+                  <span class="overview-footer-note">Corridor Capacity Slots</span>
+                  <a href="javascript:void(0)" onclick="switchTab('blocks', document.querySelectorAll('.nav-item')[5])">View Windows &rarr;</a>
+                </div>
+              </div>
+
+              <!-- Card 3: Train Movements (Operational Constraints) -->
+              <div class="overview-card" id="overviewCardTrains">
+                <div>
+                  <div class="overview-card-header">
+                    <div class="overview-card-title">
+                      <i class="fa-solid fa-train" style="color:var(--accent-blue);"></i> Train Movements
+                    </div>
+                    <span id="overviewTrainCountBadge" class="badge-label badge-blue">17 Services</span>
+                  </div>
+                  <div class="overview-card-desc">Operational constraints (Protected WTT)</div>
+                  <div class="overview-card-stats">
+                    <div class="overview-stat-row">
+                      <span class="overview-stat-label">Active Train Services</span>
+                      <span class="overview-stat-val" id="overviewTrainTotal">17 Movements</span>
+                    </div>
+                    <div class="overview-stat-row">
+                      <span class="overview-stat-label">Timetable Conflicts</span>
+                      <span class="overview-stat-val" style="color:var(--accent-green); font-weight:600;"><span class="dot dot-green"></span> 0 Clashes</span>
+                    </div>
+                    <div class="overview-stat-row">
+                      <span class="overview-stat-label">Service Composition</span>
+                      <span class="overview-stat-val" id="overviewTrainTypes">9 Exp | 5 SF | 3 Freight</span>
+                    </div>
+                    <div class="overview-stat-row">
+                      <span class="overview-stat-label">Corridor Traversal</span>
+                      <span class="overview-stat-val">Howrah – Pt. DDU</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="overview-card-footer">
+                  <span class="overview-footer-note">Fixed Timetable Limits</span>
+                  <a href="javascript:void(0)" onclick="switchTab('trains', document.querySelectorAll('.nav-item')[4])">View Timetable &rarr;</a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 2: OPTIMIZATION & CURRENT PLAN -->
+          <div id="optimizationResultBanner"></div>
+
+          <!-- SECTION 3: 24-HOUR CORRIDOR TIMELINE (GANTT) -->
+          <div class="section-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <i class="fa-solid fa-timeline"></i> 24-Hour Corridor Train Movement & Maintenance Block Timeline
+              </div>
+              <div style="font-size: 11px; color: var(--text-secondary);">
+                <span style="display:inline-flex; align-items:center; gap:4px;"><span class="dot dot-red"></span> Critical Task</span> &nbsp;
+                <span style="display:inline-flex; align-items:center; gap:4px;"><span class="dot dot-amber"></span> High Task</span> &nbsp;
+                <span style="display:inline-flex; align-items:center; gap:4px;"><span class="dot dot-green"></span> Medium Task</span> &nbsp;
+                <span style="display:inline-flex; align-items:center; gap:4px;"><span class="dot dot-gray"></span> Train Movement</span> &nbsp;
+                <span style="display:inline-flex; align-items:center; gap:4px; font-size:10.5px; border:1px dashed var(--accent-green); padding:1px 4px; border-radius:2px; color:var(--accent-green);">🪟 Available Slot</span> &nbsp;
+                <em style="color:var(--text-muted);">(Click any item to inspect details)</em>
+              </div>
+            </div>
+
+            <div class="gantt-wrapper">
+              <div class="gantt-hours-header" id="ganttHoursHeader"></div>
+              <div id="ganttTracksContainer" style="position:relative;"></div>
+            </div>
+          </div>
+        </main>
+
+        <!-- TAB 2: NETWORK & SECTIONS -->
+        <main id="tabCorridor" class="tab-content" style="display: none;">
+          <div class="section-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <i class="fa-solid fa-diagram-project"></i> Central Railway Corridor Network Topology & Section Status (Zone 4)
+              </div>
+              <div style="font-size:11px; color:var(--text-secondary);">Click any station node or track edge to view section telemetry</div>
+            </div>
+
+            <div class="network-topology-container" id="networkTopologyGraph"></div>
+
+            <div id="sectionDetailsPanel" style="display:none; margin-top:14px; background:#FAFAFA; border:1px solid var(--border-color); border-radius:4px; padding:12px 14px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <strong id="secDetailTitle" style="font-size:13px; color:var(--text-primary);">Section Telemetry</strong>
+                <button class="btn btn-secondary btn-xs" onclick="closeSectionDetails()">Close</button>
+              </div>
+              <div id="secDetailBody" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; font-size:12px;"></div>
+            </div>
+
+            <div style="margin-top:16px;">
+              <table class="enterprise-table" id="sectionsTable">
+                <thead>
+                  <tr>
+                    <th>Section ID</th>
+                    <th>Section Name</th>
+                    <th>Distance (km)</th>
+                    <th>Tracks</th>
+                    <th>Max Speed</th>
+                    <th>Active Trains</th>
+                    <th>Scheduled Blocks</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </main>
+
+        <!-- TAB 3: MAINTENANCE TASKS CRUD -->
+        <main id="tabTasks" class="tab-content" style="display: none;">
+          <div class="section-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <i class="fa-solid fa-list-check"></i> Maintenance Tasks & Backlog Register
+              </div>
+              <button class="btn btn-secondary" onclick="openCreateTaskModal()"><i class="fa-solid fa-plus"></i> Add Maintenance Task</button>
+            </div>
+
+            <div class="table-filter-bar">
+              <input type="text" id="taskSearchInput" class="input-search" placeholder="Search task ID, asset, type..." onkeyup="filterTasksTable()">
+              
+              <select id="deptFilter" class="select-filter" onchange="filterTasksTable()">
+                <option value="ALL">All Departments</option>
+                <option value="Engineering">Engineering (Track)</option>
+                <option value="Signal & Telecom">Signal & Telecom</option>
+                <option value="Traction / OHE">Traction / OHE</option>
+              </select>
+
+              <select id="prioFilter" class="select-filter" onchange="filterTasksTable()">
+                <option value="ALL">All Priorities</option>
+                <option value="CRITICAL">CRITICAL</option>
+                <option value="HIGH">HIGH</option>
+                <option value="MEDIUM">MEDIUM</option>
+                <option value="LOW">LOW</option>
+              </select>
+
+              <select id="statusFilter" class="select-filter" onchange="filterTasksTable()">
+                <option value="ALL">All Statuses</option>
+                <option value="PENDING">PENDING</option>
+                <option value="SCHEDULED">SCHEDULED</option>
+              </select>
+            </div>
+
+            <table class="enterprise-table" id="tasksTable">
+              <thead>
+                <tr>
+                  <th class="sortable" onclick="sortTasks('id')">Task ID <i class="fa-solid fa-sort"></i></th>
+                  <th>Asset ID</th>
+                  <th>Section</th>
+                  <th>Department</th>
+                  <th>Task Description</th>
+                  <th class="sortable" onclick="sortTasks('duration_mins')">Duration <i class="fa-solid fa-sort"></i></th>
+                  <th class="sortable" onclick="sortTasks('priority')">Priority <i class="fa-solid fa-sort"></i></th>
+                  <th class="sortable" onclick="sortTasks('deadline_hour')">Deadline <i class="fa-solid fa-sort"></i></th>
+                  <th>Status</th>
+                  <th style="text-align:right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </main>
+
+        <!-- TAB 4: TRAIN TIMETABLE & LIVE OPERATIONS -->
+        <main id="tabTrains" class="tab-content" style="display: none;">
+          <!-- Section 1: Corridor Operating Timetable -->
+          <div class="section-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <i class="fa-solid fa-train"></i> Corridor Section Timetable & Train Movements
+              </div>
+              <div style="display:flex; gap:8px;">
+                <button class="btn btn-secondary" onclick="openCreateTrainModal()"><i class="fa-solid fa-plus"></i> Add Train Movement</button>
+              </div>
+            </div>
+
+            <div class="table-filter-bar">
+              <input type="text" id="trainSearchInput" class="input-search" placeholder="Filter by train ID, name, or section..." oninput="filterTrainsTable()">
+              <select id="trainDirectionFilter" class="select-filter" onchange="filterTrainsTable()">
+                <option value="ALL">All Directions</option>
+                <option value="UP">UP (Toward Delhi)</option>
+                <option value="DOWN">DOWN (Toward Howrah)</option>
+              </select>
+              <select id="trainPriorityFilter" class="select-filter" onchange="filterTrainsTable()">
+                <option value="ALL">All Priorities</option>
+                <option value="1">Priority 1 (Rajdhani / SF)</option>
+                <option value="2">Priority 2 (Express / Mail)</option>
+                <option value="3">Priority 3 (Passenger / Freight)</option>
+              </select>
+            </div>
+
+            <table class="enterprise-table" id="trainsTable">
+              <thead>
+                <tr>
+                  <th>Train ID</th>
+                  <th>Train Name</th>
+                  <th>Type</th>
+                  <th>Section</th>
+                  <th>Arrival (Hrs)</th>
+                  <th>Departure (Hrs)</th>
+                  <th>Priority</th>
+                  <th>Direction</th>
+                  <th>Protected</th>
+                  <th style="text-align:right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <!-- Section 2: Pan-India Train Operations & Representative Timetable Inspector -->
+          <div class="section-panel" style="margin-top:16px;">
+            <div class="panel-header">
+              <div class="panel-title">
+                <i class="fa-solid fa-train-subway" style="color:var(--accent-green);"></i> Pan-India Train Directory & Representative Timetable Inspector
+              </div>
+              <span class="live-status-badge badge-demo" id="trainTabProviderBadge">
+                <i class="fa-solid fa-circle-check"></i> DEMO / REPRESENTATIVE DATA
+              </span>
+            </div>
+
+            <p style="font-size:11px; color:var(--text-secondary); margin-bottom:12px; line-height:1.4;">
+              Query official representative Indian Railways train schedules and route stops. This high-fidelity dataset mirrors Working Timetables (WTT) for Indian Railways trunk routes, providing deterministic train profiles for maintenance block coordination.
+            </p>
+
+            <!-- Search Mode Tabs / Inputs -->
+            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:10px;">
+              <div style="flex:2; min-width:260px;">
+                <label style="font-size:11px; font-weight:600; color:var(--text-secondary); display:block; margin-bottom:4px;">Search by Train Number or Name:</label>
+                <div style="display:flex; gap:6px;">
+                  <input type="text" id="panIndiaTrainInput" class="input-search" style="flex:1;" placeholder="e.g. 12301, 22301, Howrah Rajdhani, Vande Bharat...">
+                  <button class="btn btn-primary" onclick="searchPanIndiaTrain()"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+                </div>
+              </div>
+
+              <div style="flex:2; min-width:300px;">
+                <label style="font-size:11px; font-weight:600; color:var(--text-secondary); display:block; margin-bottom:4px;">Or Find Trains Between Stations:</label>
+                <div style="display:flex; gap:6px;">
+                  <input type="text" id="findFromStation" class="input-search" style="flex:1;" placeholder="From Code (e.g. HWH)">
+                  <input type="text" id="findToStation" class="input-search" style="flex:1;" placeholder="To Code (e.g. NDLS)">
+                  <button class="btn btn-secondary" onclick="findTrainsBetween()"><i class="fa-solid fa-route"></i> Find</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Train Chips -->
+            <div>
+              <span style="font-size:10px; font-weight:700; text-transform:uppercase; color:var(--text-muted);">Quick Premier Trains:</span>
+              <div class="quick-chips-row">
+                <span class="quick-chip" onclick="quickSelectTrain('12301')">12301 Howrah Rajdhani</span>
+                <span class="quick-chip" onclick="quickSelectTrain('22301')">22301 Vande Bharat (HWH-NJP)</span>
+                <span class="quick-chip" onclick="quickSelectTrain('12259')">12259 Sealdah BKN Duronto</span>
+                <span class="quick-chip" onclick="quickSelectTrain('12951')">12951 Mumbai Rajdhani</span>
+                <span class="quick-chip" onclick="quickSelectTrain('12004')">12004 NDLS-LKO Shatabdi</span>
+                <span class="quick-chip" onclick="quickSelectTrain('12621')">12621 Tamil Nadu Express</span>
+                <span class="quick-chip" onclick="quickSelectTrain('12431')">12431 Trivandrum Rajdhani</span>
+              </div>
+            </div>
+
+            <!-- Train Search / Status Result Card -->
+            <div id="panIndiaTrainResultArea" style="margin-top:14px; display:none;"></div>
+          </div>
+        </main>
+
+        <!-- TAB 5: BLOCK WINDOWS CRUD -->
+        <main id="tabBlocks" class="tab-content" style="display: none;">
+          <div class="section-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <i class="fa-solid fa-calendar-days"></i> Sanctioned Maintenance Block Windows
+              </div>
+              <button class="btn btn-secondary" onclick="openCreateBlockModal()"><i class="fa-solid fa-plus"></i> Add Block Window</button>
+            </div>
+
+            <table class="enterprise-table" id="blocksTable">
+              <thead>
+                <tr>
+                  <th>Block ID</th>
+                  <th>Section</th>
+                  <th>Start Time (Hrs)</th>
+                  <th>End Time (Hrs)</th>
+                  <th>Max Duration</th>
+                  <th>Permitted Departments</th>
+                  <th>Status</th>
+                  <th style="text-align:right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </main>
+
+        <!-- TAB: PAN-INDIA STATION DIRECTORY -->
+        <main id="tabStations" class="tab-content" style="display: none;">
+          <div class="section-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <i class="fa-solid fa-map-location-dot"></i> Pan-India Station Directory & Infrastructure (135+ Major Stations)
+              </div>
+              <div style="font-size:11px; color:var(--text-secondary);">
+                <span id="stationCountBadge" style="font-weight:700; color:var(--accent-green);">135</span> Stations Available across all 28 States & Zones
+              </div>
+            </div>
+
+            <!-- Search and Hierarchy Filters -->
+            <div class="station-search-bar">
+              <input type="text" id="stationSearchInput" class="input-search" style="flex:2; min-width:220px;" placeholder="Search station by name or code (e.g., NDLS, HWH, CSMT)..." oninput="filterStations()">
+              
+              <select id="stationStateFilter" class="select-filter" style="flex:1; min-width:150px;" onchange="handleStationStateChange()">
+                <option value="ALL">All States / UTs</option>
+              </select>
+
+              <select id="stationDistrictFilter" class="select-filter" style="flex:1; min-width:150px;" onchange="filterStations()">
+                <option value="ALL">All Districts</option>
+              </select>
+
+              <select id="stationZoneFilter" class="select-filter" style="flex:1; min-width:120px;" onchange="filterStations()">
+                <option value="ALL">All Zones</option>
+                <option value="NR">NR (Northern)</option>
+                <option value="ER">ER (Eastern)</option>
+                <option value="ECR">ECR (East Central)</option>
+                <option value="CR">CR (Central)</option>
+                <option value="WR">WR (Western)</option>
+                <option value="SR">SR (Southern)</option>
+                <option value="SCR">SCR (South Central)</option>
+                <option value="SER">SER (South Eastern)</option>
+                <option value="SWR">SWR (South Western)</option>
+                <option value="NFR">NFR (Northeast Frontier)</option>
+              </select>
+
+              <button class="btn btn-secondary btn-xs" onclick="resetStationFilters()"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+            </div>
+
+            <!-- Station Cards Grid -->
+            <div class="station-grid" id="stationsGrid"></div>
+
+            <!-- Live Train Telemetry & Provider Panel -->
+            <div class="live-train-box">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div style="font-size:12px; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+                  <i class="fa-solid fa-clock" style="color:var(--accent-green);"></i> Representative Train Timetable Engine
+                </div>
+                <span class="live-status-badge badge-demo" id="providerStatusBadge"><i class="fa-solid fa-circle-check"></i> DEMO / REPRESENTATIVE DATA</span>
+              </div>
+              <p style="font-size:11px; color:var(--text-secondary); margin-bottom:10px; line-height:1.4;">
+                This prototype utilizes a high-fidelity representative Working Timetable (WTT) dataset modeled after Indian Railways trunk lines. It provides conflict-free timetable profiles for CP-SAT maintenance block scheduling without external network dependencies.
+              </p>
+              <div style="display:flex; gap:8px; max-width:480px;">
+                <input type="text" id="liveTrainInput" class="input-search" placeholder="Enter 5-digit Train Number (e.g. 12301, 12302, 12004)" style="flex:1;">
+                <button class="btn btn-secondary" onclick="checkLiveTrainStatus()"><i class="fa-solid fa-magnifying-glass"></i> Query Timetable</button>
+              </div>
+              <div id="liveTrainResultBox" style="margin-top:10px; display:none;"></div>
+            </div>
+          </div>
+        </main>
+
+        <!-- TAB 6: EXPLAINABILITY AUDIT LOG -->
+        <main id="tabExplain" class="tab-content" style="display: none;">
+          <div class="section-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <i class="fa-solid fa-file-contract"></i> Plain-English Decision Rationale & Audit Log
+              </div>
+            </div>
+
+            <div style="background:#FAFAFA; padding:12px 14px; border:1px solid var(--border-color); border-radius:3px; margin-bottom:14px;">
+              <strong style="color:var(--accent-green); font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Executive Summary:</strong>
+              <p id="summaryText" style="margin-top:4px; color:var(--text-primary); font-size:12px; line-height:1.5;">Click 'Generate Plan' to compute natural language audit justifications for each schedule placement.</p>
+            </div>
+
+            <div id="explanationsContainer"></div>
+          </div>
+        </main>
+
+        <!-- TAB 7: BASELINE BENCHMARK -->
+        <main id="tabComparison" class="tab-content" style="display: none;">
+          <div class="section-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <i class="fa-solid fa-scale-balanced"></i> Benchmark Performance: Uncoordinated Manual Baseline vs OR-Tools Optimizer
+              </div>
+            </div>
+
+            <table class="enterprise-table" style="margin-top:8px;">
+              <thead>
+                <tr>
+                  <th>Performance Metric</th>
+                  <th>Uncoordinated Manual Baseline</th>
+                  <th>OR-Tools CP-SAT Optimizer</th>
+                  <th>Operational Impact</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Train-Block Conflicts</strong></td>
+                  <td><span class="semantic-text text-critical"><span class="dot dot-red"></span> <span id="baseManConf">--</span></span></td>
+                  <td><span class="semantic-text text-medium"><span class="dot dot-green"></span> <span id="baseOptConf">--</span></span></td>
+                  <td><strong style="color:var(--accent-green);" id="baseConfDelta">--</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Total Train Disruption Delay</strong></td>
+                  <td id="baseManDelay">--</td>
+                  <td id="baseOptDelay" style="font-weight:600; color:var(--accent-green);">--</td>
+                  <td><strong style="color:var(--accent-green);" id="baseDelayDelta">--</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Corridor Block Window Utilization</strong></td>
+                  <td id="baseManUtil">--</td>
+                  <td id="baseOptUtil" style="font-weight:600; color:var(--accent-green);">--</td>
+                  <td><strong style="color:var(--accent-green);" id="baseUtilDelta">--</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Critical Defects Completed Before Deadline</strong></td>
+                  <td id="baseManCrit">--</td>
+                  <td id="baseOptCrit" style="font-weight:600; color:var(--accent-green);">--</td>
+                  <td><strong style="color:var(--accent-green);" id="baseCritDelta">--</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </main>
+
+        <!-- TAB 9: LATEST PLAN RESULT & SOLVER AUDIT -->
+        <main id="tabPlanResult" class="tab-content" style="display: none;">
+          <div class="section-panel" id="planResultFullContainer">
+            <div class="panel-header">
+              <div class="panel-title">
+                <i class="fa-solid fa-square-poll-vertical"></i> Latest Corridor Optimization Result & Mathematical Audit
+              </div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <button class="btn btn-secondary btn-xs" onclick="switchTab('dashboard', document.querySelectorAll('.nav-item')[0])"><i class="fa-solid fa-gauge-high"></i> Back to Overview</button>
+                <button class="btn btn-primary btn-xs" onclick="triggerOptimize()"><i class="fa-solid fa-rotate"></i> Run CP-SAT Re-Optimization</button>
+              </div>
+            </div>
+
+            <div id="planResultFullContent" style="padding:16px;">
+              <!-- Populated dynamically via renderPlanResultFullView() -->
+            </div>
+          </div>
+        </main>
+
+        <!-- TAB 8: PLAN HISTORY -->
+        <main id="tabHistory" class="tab-content" style="display: none;">
+          <div class="section-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <i class="fa-solid fa-clock-rotate-left"></i> Optimization Run History & Audit Trail
+              </div>
+            </div>
+
+            <table class="enterprise-table" id="historyTable">
+              <thead>
+                <tr>
+                  <th>Plan ID</th>
+                  <th>Generated Timestamp</th>
+                  <th>Trigger Event</th>
+                  <th>Status</th>
+                  <th>Tasks Scheduled</th>
+                  <th>Conflicts</th>
+                  <th>Utilization</th>
+                  <th>Disruption Reduction</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </main>
+
+      </div>
+
+      <!-- Footer Safety Boundary Note -->
+      <footer class="safety-note">
+        Decision-support prototype for SIH 2026 PS 26027. Final operational authorization remains with designated Indian Railways personnel.
+      </footer>
+    </div>
+  </div>
+
+  <!-- MODAL 1: TASK CREATE / EDIT MODAL -->
+  <div id="taskModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">
+        <span id="taskModalTitle">Register Maintenance Task</span>
+        <button onclick="closeModal('taskModal')" style="background:none; border:none; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="taskForm" onsubmit="handleTaskSubmit(event)">
+        <div class="form-group">
+          <label>Task ID *</label>
+          <input type="text" id="mTaskId" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Section *</label>
+          <select id="mSection" class="form-control" required></select>
+        </div>
+        <div class="form-group">
+          <label>Asset ID *</label>
+          <select id="mAssetId" class="form-control" required></select>
+        </div>
+        <div class="form-group">
+          <label>Department *</label>
+          <select id="mDept" class="form-control" required>
+            <option value="Engineering">Engineering (Track)</option>
+            <option value="Signal & Telecom">Signal & Telecom</option>
+            <option value="Traction / OHE">Traction / OHE</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Task Description *</label>
+          <input type="text" id="mType" class="form-control" required>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <div class="form-group" style="flex:1;">
+            <label>Duration (Mins) *</label>
+            <input type="number" id="mDur" class="form-control" min="15" max="720" required>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Priority *</label>
+            <select id="mPrio" class="form-control" required>
+              <option value="CRITICAL">CRITICAL</option>
+              <option value="HIGH">HIGH</option>
+              <option value="MEDIUM" selected>MEDIUM</option>
+              <option value="LOW">LOW</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Deadline Hour (0-24) *</label>
+            <input type="number" id="mDeadline" class="form-control" min="0" max="24" step="0.5" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Required Crew Gang</label>
+          <input type="text" id="mCrew" class="form-control" placeholder="e.g. Howrah Track Unit 1">
+        </div>
+        <div class="form-group" style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+          <input type="checkbox" id="mIsEmergency" style="cursor:pointer;">
+          <label for="mIsEmergency" style="margin-bottom:0; cursor:pointer; font-weight:600; color:var(--accent-red); font-size:12px;">
+            <i class="fa-solid fa-triangle-exclamation"></i> Emergency Defect (High priority preemption)
+          </label>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:14px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('taskModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 2: TRAIN CREATE / EDIT MODAL -->
+  <div id="trainModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">
+        <span id="trainModalTitle">Register Train Movement</span>
+        <button onclick="closeModal('trainModal')" style="background:none; border:none; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="trainForm" onsubmit="handleTrainSubmit(event)">
+        <div style="display:flex; gap:10px;">
+          <div class="form-group" style="flex:1;">
+            <label>Train ID / Number *</label>
+            <input type="text" id="trId" class="form-control" required>
+          </div>
+          <div class="form-group" style="flex:2;">
+            <label>Train Name *</label>
+            <input type="text" id="trName" class="form-control" required>
+          </div>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <div class="form-group" style="flex:1;">
+            <label>Origin Station</label>
+            <input type="text" id="trOrigin" class="form-control" placeholder="e.g. Howrah Jn (HWH)">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Destination Station</label>
+            <input type="text" id="trDest" class="form-control" placeholder="e.g. Pt. DD Upadhyaya (DDU)">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Section *</label>
+          <select id="trSection" class="form-control" required></select>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <div class="form-group" style="flex:1;">
+            <label>Arrival Hour (0-24) *</label>
+            <input type="number" id="trArr" class="form-control" min="0" max="24" step="0.1" required>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Departure Hour (0-24) *</label>
+            <input type="number" id="trDep" class="form-control" min="0" max="24" step="0.1" required>
+          </div>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <div class="form-group" style="flex:1;">
+            <label>Priority Class *</label>
+            <select id="trPrio" class="form-control" required>
+              <option value="1">1 - Express / Rajdhani</option>
+              <option value="2">2 - Mail / Passenger</option>
+              <option value="3">3 - Freight Special</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Direction</label>
+            <select id="trDir" class="form-control">
+              <option value="DOWN">DOWN</option>
+              <option value="UP">UP</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:14px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('trainModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Train Movement</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 3: BLOCK WINDOW CREATE / EDIT MODAL -->
+  <div id="blockModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">
+        <span id="blockModalTitle">Register Block Window</span>
+        <button onclick="closeModal('blockModal')" style="background:none; border:none; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="blockForm" onsubmit="handleBlockSubmit(event)">
+        <div class="form-group">
+          <label>Block ID *</label>
+          <input type="text" id="blkId" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Section *</label>
+          <select id="blkSection" class="form-control" required></select>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <div class="form-group" style="flex:1;">
+            <label>Start Hour (0-24) *</label>
+            <input type="number" id="blkStart" class="form-control" min="0" max="24" step="0.5" required>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>End Hour (0-24) *</label>
+            <input type="number" id="blkEnd" class="form-control" min="0" max="24" step="0.5" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Permitted Departments (Check allowed)</label>
+          <div style="display:flex; gap:14px; margin-top:4px;">
+            <label><input type="checkbox" id="permEng" checked> Engineering</label>
+            <label><input type="checkbox" id="permST" checked> Signal & Telecom</label>
+            <label><input type="checkbox" id="permOHE" checked> Traction / OHE</label>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:14px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('blockModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Block Window</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 4: EMERGENCY DEFECT INJECTION MODAL -->
+  <div id="defectModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">
+        <span style="color:var(--accent-red);"><i class="fa-solid fa-triangle-exclamation"></i> Inject Live Operational Defect</span>
+        <button onclick="closeModal('defectModal')" style="background:none; border:none; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="defectForm" onsubmit="handleDefectSubmit(event)">
+        <div class="form-group">
+          <label>Target Corridor Section *</label>
+          <select id="defSection" class="form-control" required></select>
+        </div>
+        <div class="form-group">
+          <label>Defect Classification *</label>
+          <input type="text" id="defType" class="form-control" value="EMERGENCY Track Rail Fracture" required>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <div class="form-group" style="flex:1;">
+            <label>Severity Level *</label>
+            <select id="defSev" class="form-control" required>
+              <option value="CRITICAL" selected>CRITICAL (Immediate Line Block)</option>
+              <option value="HIGH">HIGH</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Duration (Mins) *</label>
+            <input type="number" id="defDur" class="form-control" value="90" min="30" max="240" required>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Deadline (Hrs) *</label>
+            <input type="number" id="defDeadline" class="form-control" value="6.0" min="0" max="24" step="0.5" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Operational Description</label>
+          <textarea id="defDesc" class="form-control" rows="2">Ultrasonic flaw detector detected transverse fissure in rail head on Down Track.</textarea>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:14px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('defectModal')">Cancel</button>
+          <button type="submit" class="btn btn-danger">Inject & Re-Optimize</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 5: PLAN DIFF SUMMARY MODAL -->
+  <div id="diffModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:680px; width:90%;">
+      <div class="modal-title">
+        <span><i class="fa-solid fa-code-compare"></i> Rescheduling Plan Diff & Displacement Summary</span>
+        <button onclick="closeModal('diffModal')" style="background:none; border:none; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="diffModalContent" style="font-size:12px; line-height:1.6; max-height:480px; overflow-y:auto;"></div>
+      <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:14px;">
+        <button class="btn btn-primary" onclick="closeModal('diffModal')">Acknowledge</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CLEAR PLAN CONFIRMATION -->
+  <div id="clearPlanModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:480px; width:90%;">
+      <div class="modal-title">
+        <span><i class="fa-solid fa-triangle-exclamation" style="color:var(--accent-red);"></i> Clear Current Plan?</span>
+        <button onclick="closeModal('clearPlanModal')" style="background:none; border:none; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div style="font-size:12.5px; line-height:1.5; color:var(--text-secondary); margin: 14px 0 20px 0;">
+        <p style="margin-bottom:10px; color:var(--text-primary); font-weight:600;">
+          This will remove the current optimization result and all task-to-block assignments.
+        </p>
+        <p style="margin-bottom:0;">
+          Your maintenance tasks, trains, block windows and other scenario data will remain unchanged.
+        </p>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:8px;">
+        <button class="btn btn-secondary" onclick="closeModal('clearPlanModal')">Cancel</button>
+        <button class="btn btn-danger" onclick="executeClearPlan()"><i class="fa-solid fa-trash-can"></i> Clear Plan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 6: DATA IMPORT MODAL (CSV / JSON) -->
+  <div id="importModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:580px; width:90%;">
+      <div class="modal-title">
+        <span><i class="fa-solid fa-file-import"></i> Import Operational Data (JSON / CSV)</span>
+        <button onclick="closeModal('importModal')" style="background:none; border:none; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="importForm" onsubmit="handleImportSubmit(event)">
+        <div class="form-group">
+          <label>Import Target *</label>
+          <select id="importType" class="form-control" onchange="handleImportTypeChange()">
+            <option value="tasks">Maintenance Tasks (JSON / CSV)</option>
+            <option value="trains">Train Timetable (JSON / CSV)</option>
+            <option value="blocks">Sanctioned Block Windows (JSON / CSV)</option>
+            <option value="scenario">Full Scenario Dataset (JSON)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Select File (Optional)</label>
+          <input type="file" id="importFileInput" class="form-control" accept=".json,.csv" onchange="handleImportFileSelect(event)">
+        </div>
+
+        <div class="form-group">
+          <label>Or Paste Raw JSON / CSV Data *</label>
+          <textarea id="importTextInput" class="form-control" rows="8" placeholder="Paste raw JSON array or CSV text here..." required style="font-family:monospace; font-size:11px;"></textarea>
+        </div>
+
+        <div id="importFormatHint" style="font-size:11px; color:var(--text-secondary); margin-bottom:12px;">
+          CSV format: <code>id,task_type,department,section,asset_id,priority,duration_mins,deadline_hour</code>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:14px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('importModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-upload"></i> Import & Load</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 7: STATION LIVE BOARD (ARRIVALS & DEPARTURES) -->
+  <div id="stationBoardModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:820px; width:92%;">
+      <div class="modal-title">
+        <div>
+          <span id="stBoardTitle"><i class="fa-solid fa-chalkboard-user"></i> Station Live Board</span>
+          <span id="stBoardSourceBadge" class="live-status-badge badge-scheduled" style="margin-left:8px; font-size:10px;"></span>
+        </div>
+        <button onclick="closeModal('stationBoardModal')" style="background:none; border:none; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="stBoardMeta" style="font-size:11px; color:var(--text-secondary); margin-bottom:12px; display:flex; gap:16px; flex-wrap:wrap;"></div>
+      <div style="max-height:420px; overflow-y:auto;">
+        <table class="enterprise-table" id="stationBoardTable">
+          <thead>
+            <tr>
+              <th>Train No.</th>
+              <th>Train Name</th>
+              <th>Type</th>
+              <th>Origin / Dest</th>
+              <th>Arr. IST</th>
+              <th>Dep. IST</th>
+              <th>PF</th>
+              <th>Status / Delay</th>
+              <th style="text-align:right;">Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; font-size:11px; color:var(--text-muted);">
+        <span id="stBoardNotice"></span>
+        <button class="btn btn-secondary" onclick="closeModal('stationBoardModal')">Close Board</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 8: TRAIN ROUTE & LIVE INSPECTION MODAL -->
+  <div id="trainInspectModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:780px; width:92%;">
+      <div class="modal-title">
+        <div>
+          <span id="trInspectTitle"><i class="fa-solid fa-train"></i> Train Movement Telemetry</span>
+          <span id="trInspectStatusBadge" class="live-status-badge badge-scheduled" style="margin-left:8px; font-size:10px;"></span>
+        </div>
+        <button onclick="closeModal('trainInspectModal')" style="background:none; border:none; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="trInspectMeta" style="background:#FAFAFA; border:1px solid var(--border-color); border-radius:4px; padding:10px 14px; margin-bottom:12px; font-size:11px; line-height:1.5;"></div>
+      <div style="max-height:360px; overflow-y:auto;">
+        <table class="enterprise-table" id="trainInspectTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Station Code</th>
+              <th>Station Name</th>
+              <th>Arr. Time</th>
+              <th>Dep. Time</th>
+              <th>Halt</th>
+              <th>Day</th>
+              <th>Distance</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px;">
+        <button id="trInspectAddToCorridorBtn" class="btn btn-primary btn-xs" onclick="addCurrentInspectedTrainToCorridor()"><i class="fa-solid fa-plus"></i> Add to Corridor Timetable</button>
+        <button class="btn btn-secondary" onclick="closeModal('trainInspectModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETAIL DRAWER (FOR GANTT INSPECTION) -->
+  <div id="detailDrawer" class="detail-drawer">
+    <div class="drawer-header">
+      <strong id="drawerTitle" style="font-size:13px;">Item Details</strong>
+      <button onclick="closeDrawer()" style="background:none; border:none; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="drawer-body" id="drawerBody"></div>
+  </div>
+
+  <!-- LOADING PROGRESS OVERLAY -->
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-box">
+      <div class="loading-spinner"></div>
+      <div id="loadingStepTitle" style="font-weight:700; font-size:13px; color:var(--text-primary);">Running OR-Tools Optimizer...</div>
+      <div id="loadingStepDesc" style="font-size:11px; color:var(--text-secondary); margin-top:4px;">Building CP-SAT constraint matrix...</div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

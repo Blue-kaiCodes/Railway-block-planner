@@ -1,0 +1,17 @@
+{
+  "name": "railway-block-planner",
+  "version": "2.0.0",
+  "description": "Railway Block Planning & Optimization Platform (PS 26027)",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "build": "echo 'Build complete'",
+    "lint": "node --check server.js server/database.js server/explainability.js server/optimizer.js server/synthetic_data.js server/train_provider.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}
