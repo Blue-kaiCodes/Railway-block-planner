@@ -1173,9 +1173,7 @@ body {
   background-color: var(--bg-hover);
 }
 
-/* =========================================================
-   SCENARIO CONTEXT STRIP & STATE-DRIVEN OVERVIEW
-   ========================================================= */
+/* Scenario Context Strip */
 .scenario-context-strip {
   display: flex;
   flex-wrap: wrap;
@@ -1216,9 +1214,7 @@ body {
   color: var(--text-primary);
 }
 
-/* =========================================================
-   OPTIMIZATION RESULT PANEL & PLAN DIFF
-   ========================================================= */
+/* Optimization Result Panel */
 .opt-panel-container {
   background: #FFFFFF;
   border: 1px solid var(--border-color);

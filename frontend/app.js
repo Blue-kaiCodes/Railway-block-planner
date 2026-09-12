@@ -523,7 +523,7 @@ function renderGanttTimeline() {
     const secTrains = (AppState.dataset.trains || []).filter(t => t.section === sec.id);
     const secBlocks = (AppState.currentSchedule || []).filter(s => s.section === sec.id);
 
-    // 1. Available Sanctioned Block Windows (Planning Slots)
+    // Block windows
     secWindows.forEach(win => {
       const leftPct = (win.start_hour / 24) * 100;
       const widthPct = ((win.end_hour - win.start_hour) / 24) * 100;
@@ -562,7 +562,7 @@ function renderGanttTimeline() {
       track.appendChild(winBar);
     });
 
-    // 2. Active Train Movements (Timetable Constraints)
+    // Train movements
     secTrains.forEach(tr => {
       const leftPct = (tr.arrival_hour / 24) * 100;
       const widthPct = ((tr.departure_hour - tr.arrival_hour) / 24) * 100;
@@ -587,7 +587,7 @@ function renderGanttTimeline() {
       track.appendChild(trainBar);
     });
 
-    // 3. Scheduled Maintenance Tasks (Optimizer Decisions)
+    // Scheduled maintenance tasks
     secBlocks.forEach(blk => {
       const leftPct = (blk.start_hour / 24) * 100;
       const widthPct = ((blk.end_hour - blk.start_hour) / 24) * 100;
@@ -2217,9 +2217,7 @@ function showStationInfo(code) {
   }
 }
 
-// ==========================================
-// PAN-INDIA STATION DIRECTORY
-// ==========================================
+// Station directory
 async function initStationDirectory() {
   try {
     const res = await fetch(`${API_BASE}/stations?limit=150`);
@@ -2356,9 +2354,7 @@ function queryLiveTrainsForStation(code) {
   openStationBoard(code);
 }
 
-// ==========================================
-// STATION LIVE BOARD (ARRIVALS & DEPARTURES)
-// ==========================================
+// Station live board (arrivals & departures)
 async function openStationBoard(stationCode) {
   const modal = document.getElementById("stationBoardModal");
   const title = document.getElementById("stBoardTitle");
@@ -2426,9 +2422,7 @@ async function openStationBoard(stationCode) {
   }
 }
 
-// ==========================================
-// TRAIN ROUTE & LIVE INSPECTION
-// ==========================================
+// Train route & inspection
 let currentlyInspectedTrain = null;
 
 async function inspectTrainRoute(trainNumber) {
@@ -2510,9 +2504,7 @@ function addCurrentInspectedTrainToCorridor() {
   document.getElementById("trDep").value = "03.0";
 }
 
-// ==========================================
-// PAN-INDIA TRAIN SEARCH & LIVE TELEMETRY
-// ==========================================
+// Pan-India train search & telemetry
 async function searchPanIndiaTrain() {
   const q = (document.getElementById("panIndiaTrainInput")?.value || "").trim();
   if (!q) {
@@ -2687,9 +2679,7 @@ async function checkLiveTrainByNumber(trainNum) {
   }
 }
 
-// ==========================================
-// LIVE TRAIN TELEMETRY PROVIDER STATUS
-// ==========================================
+// Telemetry provider status
 async function initLiveProviderStatus() {
   try {
     const res = await fetch(`${API_BASE}/live/provider-status`);
@@ -2721,9 +2711,7 @@ async function checkLiveTrainStatus() {
   checkLiveTrainByNumber(trainNum);
 }
 
-// ==========================================
-// DATA IMPORT & EXPORT
-// ==========================================
+// Data import & export
 function openImportModal() {
   document.getElementById("importForm").reset();
   handleImportTypeChange();
