@@ -32,8 +32,12 @@ desktop.ini
 *.sublime-project
 *.sublime-workspace
 
-# Runtime logs and exports
+# Runtime logs, databases, and exports
 *.log
+*.db
+*.db-wal
+*.db-shm
+data/*.db*
 data/snapshot.json
 
 # Node dependencies

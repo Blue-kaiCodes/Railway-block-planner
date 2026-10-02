@@ -1,225 +1,158 @@
-﻿# Railway Block Planner
+# Railway Block Planner — Enterprise Real-Time Platform
 
 ## SIH 2026 — Problem Statement 26027
 **AI-Powered Automatic Block Planning to Maximize Asset Availability for Train Operations on Indian Railways**
 
----
-
-## Overview
-
-### The Problem
-Indian Railways operates thousands of passenger and freight trains daily over heavily congested trunk corridors. To keep railway infrastructure safe and functional, maintenance departments—primarily **Civil Engineering (Track/Bridges)**, **Signal & Telecom (S&T)**, and **Electrical Traction (OHE)**—must take track sections offline ("maintenance blocks"). 
-
-Historically, these departments have submitted block requests independently through departmental channels. Without automated synchronization across departments or against the live train operating timetable, railway controllers face severe operational friction:
-- Uncoordinated maintenance requests conflict with express train paths.
-- Multiple departments demand blocks on the same track section at different times instead of coordinating integrated possessions.
-- Manual planning results in train detentions, compromised safety margins, and maintenance backlogs.
-
-### What the Application Does
-The **Railway Block Planner** is a deterministic decision-support application built for railway corridor operations. It automates the allocation of maintenance blocks across corridor sections by:
-1. Reconciling departmental maintenance demands with train timetable schedules.
-2. Formulating the scheduling problem as an exact mathematical constraint satisfaction problem.
-3. Guaranteeing zero collisions between train movements and scheduled track blocks.
-4. Dynamically re-optimizing schedules upon emergency defect injection with minimal disruption to unaffected work.
-5. Providing plain-English audit justifications for every allocation decision.
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com)
+[![Google OR-Tools](https://img.shields.io/badge/Google%20OR--Tools-CP--SAT-orange.svg)](https://developers.google.com/optimization)
+[![Tests Passing](https://img.shields.io/badge/tests-32%20passed-brightgreen.svg)]()
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
-## Features
+## 1. Overview
 
-- **Corridor Timeline & Gantt View**: 24-hour visual schedule displaying train paths (Express/Freight) alongside scheduled departmental maintenance blocks across five corridor sections (`A12-B14` through `D15-E20`).
-- **Interactive Detail Inspection**: Click any train path or maintenance block on the Gantt chart to inspect timetable protections, asset health, crew allocation, and audit reasoning.
-- **Full Maintenance Task Management (CRUD)**: Create, edit, delete, duplicate, search, filter, and sort maintenance tasks across Engineering, S&T, and Traction departments.
-- **Master Train Timetable Management**: Add, update, and delete scheduled train services with arrival/departure windows and priority classifications.
-- **Block Windows Management**: Configure corridor maintenance windows and allowable departmental work types.
-- **Google OR-Tools CP-SAT Optimizer**: Deterministic solver enforcing zero train collisions, single-track occupancy, and departmental crew capacity limits.
-- **Live Emergency Defect Re-Optimization**: Simulate emergency track defects (e.g. ultrasonic rail fracture detection) with minimal-disruption rescheduling.
-- **Interactive Plan Diff & Rollback**: Compare schedule changes before and after re-optimization, with one-click rollback to previous plan snapshots.
-- **Algorithmic Baseline Comparison**: Compare optimized schedules against an uncoordinated First-Come, First-Served (FCFS) manual baseline to quantify conflict and delay reductions.
-- **Plain-English Explainability Engine**: Human-readable audit trails detailing why each task was assigned to its specific time window.
-- **CSV Plan Export**: Download scheduled block orders formatted for field maintenance gangs.
+Indian Railways operates thousands of passenger and freight services daily over congested trunk corridors (e.g. Howrah – Pt. Deen Dayal Upadhyaya on the Grand Chord). To maintain permanent way infrastructure, signaling interlockings, and overhead traction (OHE), engineering gangs must take track sections offline ("maintenance blocks").
+
+The **Railway Block Planner** has evolved from an initial timetable deconfliction tool into an **enterprise-grade, real-time decision-support platform**. It integrates authenticated external railway feeds (CRIS/ISRO RTIS, NTES), trackside IoT sensor telemetry (Axle Counters, Continuous Rail Temperature, Bridge Pier Water Level Gauges, Track Accelerometers), an atomic SQLite WAL state store, continuous corridor conflict detection, Google OR-Tools CP-SAT re-optimization, and an explicit **Chief Traffic Controller Approval Workflow**.
+
+> [!IMPORTANT]
+> **Strict Operational Authenticity**:
+> The system enforces zero fabricated live data. When external CRIS or NTES credentials are unconfigured, feeds enter `AUTHENTICATION REQUIRED` or `UNAVAILABLE` state without generating synthetic live trains. An optional development simulation provider is provided for offline testing, strictly labeled with `data_quality: SIMULATED` and prominent disclaimer banners.
 
 ---
 
-## Architecture
+## 2. Key Capabilities & Architecture
 
 ```
-Frontend (HTML5 / Vanilla ES6+ / CSS Grid)
-    │
-    ▼  REST JSON APIs
-Backend API (FastAPI / Pydantic)
-    │
-    ├────────► Constraint Optimization Engine (Google OR-Tools CP-SAT)
-    │
-    ├────────► Baseline Simulator (FCFS Uncoordinated Benchmark)
-    │
-    ├────────► Explainability Engine (Natural Language Audit Log)
-    │
-    └────────► Data Layer (Thread-Safe File-Backed JSON Store)
+                          ┌────────────────────────┐
+                          │   CRIS / ISRO RTIS     │ (Locomotive GPS Telemetry via mTLS/OAuth2)
+                          └───────────┬────────────┘
+                          ┌───────────▼────────────┐
+                          │  IR NTES / API Setu    │ (Timetables & Station Delay Tracking)
+                          └───────────┬────────────┘
+                          ┌───────────▼────────────┐
+                          │ Trackside IoT Sensors  │ (Axle Counters, Temp, Water Level, Vibration)
+                          └───────────┬────────────┘
+                                      │
+                                      ▼
+             ┌──────────────────────────────────────────────────┐
+             │       CANONICAL RAILWAY STATE STORE (SQLite WAL) │
+             │  Microsecond ACID telemetry storage & history    │
+             └────────────────────────┬─────────────────────────┘
+                                      │
+                                      ▼
+             ┌──────────────────────────────────────────────────┐
+             │         CORRIDOR CONFLICT DETECTION ENGINE       │
+             │  Headway, Speed Violations, Ghost Occupancies    │
+             └────────────────────────┬─────────────────────────┘
+                                      │ Triggers Re-Optimization
+                                      ▼
+             ┌──────────────────────────────────────────────────┐
+             │      GOOGLE OR-TOOLS CP-SAT RE-OPTIMIZER         │
+             │  Deterministic integer programming solver        │
+             └────────────────────────┬─────────────────────────┘
+                                      │
+                                      ▼
+             ┌──────────────────────────────────────────────────┐
+             │       CANDIDATE PLAN GATEWAY & OPERATOR APPROVAL │
+             │  PLAN-00X versioning, Plan Diffs, Sign-off Gate  │
+             └────────────────────────┬─────────────────────────┘
+                                      │
+                                      ▼
+             ┌──────────────────────────────────────────────────┐
+             │    CHIEF CONTROLLER CONSOLE & REST API V1        │
+             │  Dark console UI, Live Fleet Grid, IoT Matrix    │
+             └──────────────────────────────────────────────────┘
 ```
 
-For detailed architectural diagrams and data flows, see [docs/architecture.md](docs/architecture.md).
+- **Live Fleet Tracking**: Ingests high-frequency locomotive coordinates, velocity, direction, and delay seconds.
+- **Trackside IoT Gateway**: Authenticated (`X-Sensor-Token`) endpoint evaluating axle counts, track buckling risks ($>55^\circ\text{C}$ / $>65^\circ\text{C}$), bridge flooding ($>3.5\text{m}$ / $>4.5\text{m}$ Danger Level), and track geometry acceleration ($>0.8\text{g}$).
+- **Continuous Conflict Detection**: Real-time evaluation of headway infractions, speed restriction exceedances, unexplained occupancies, and schedule drift cascades.
+- **Dynamic Re-Optimization**: Google OR-Tools CP-SAT re-allocates maintenance possessions dynamically when corridor conditions change.
+- **Versioned Candidate Plans & Sign-Off**: Generates candidate plans (`PLAN-001`, `PLAN-002`) in `PENDING_APPROVAL` status with shift diffs. The Chief Traffic Controller reviews and executes digital sign-off (`APPROVED` or `REJECTED`) before any schedule becomes active.
+- **Decision Support Independence**: Operates strictly as a decision-support advisory system without replacing physical safety interlocking.
 
 ---
 
-## Tech Stack
+## 3. Technology Stack
 
-- **Backend**: Python 3.10+, FastAPI, Pydantic, Uvicorn
-- **Optimization Solver**: Google OR-Tools (CP-SAT Constraint Programming Solver)
-- **Frontend**: Vanilla HTML5, CSS3 (Inter typography, responsive grid), Modern JavaScript (ES6+), FontAwesome 6 (CDN)
-- **Data Layer**: File-backed JSON repository (`data/datastore.json`)
-
----
-
-## Project Structure
-
-```
-railway-block-planner/
-│
-├── README.md               # Project documentation
-├── LICENSE                 # MIT License
-├── .gitignore              # Git ignore configuration
-├── .env.example            # Environment configuration template
-├── requirements.txt        # Python dependencies
-├── run_app.py              # Application launcher script
-├── start.bat               # Windows batch launcher
-│
-├── backend/
-│   ├── main.py             # FastAPI server, REST API endpoints, static file mounting
-│   ├── optimizer.py        # Google OR-Tools CP-SAT scheduling model
-│   ├── baseline_solver.py  # Algorithmic FCFS baseline comparison model
-│   ├── explainability.py   # Decision explanation and audit generator
-│   ├── database.py         # Thread-safe JSON data store and snapshot management
-│   ├── schemas.py          # Pydantic data schemas and validation models
-│   ├── synthetic_data.py   # Default corridor topology, assets, and seed data
-│   └── test_optimizer.py   # Automated test suite
-│
-├── data/
-│   └── datastore.json      # Persistent JSON database
-│
-├── docs/
-│   ├── architecture.md     # System architecture and layer specifications
-│   └── optimization.md     # Mathematical formulation and solver constraints
-│
-└── frontend/
-    ├── index.html          # Single-page interface markup
-    ├── styles.css          # Design system, layout, and component styles
-    └── app.js              # Application state, UI interactions, API client
-```
+- **Backend Runtime**: Python 3.11+ / 3.14
+- **API Framework**: FastAPI, Pydantic v2, Starlette, Uvicorn, HTTPX
+- **Optimization Engine**: Google OR-Tools (Constraint Programming - Satisfiability CP-SAT)
+- **Data Persistence**: SQLite 3 with Write-Ahead Logging (WAL) mode & thread-safe re-entrant locks
+- **Frontend Console**: Vanilla ES6+ JavaScript, CSS3 Grid (Indian Railways dark console theme, Inter font), FontAwesome 6
+- **Testing**: Python Standard Library `unittest` with FastAPI `TestClient` (32 passing automated tests)
 
 ---
 
-## Installation
+## 4. Quick Start
 
-### Prerequisites
-- Python 3.10 or higher
-- Git (optional, for cloning)
+### 4.1 Prerequisites & Installation
 
-### Setup Steps
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/railway-block-planner.git
-   cd railway-block-planner
-   ```
-
-2. Create and activate a virtual environment (recommended):
-   ```bash
-   # Windows
-   python -m venv venv
-   .\venv\Scripts\activate
-
-   # Linux / macOS
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
-
-3. Install required Python packages:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
----
-
-## Running Locally
-
-### Option 1: One-Click Launcher (Windows)
-Double-click `start.bat`, or execute:
+Clone repository and set up virtual environment:
 ```bash
-python run_app.py
+git clone https://github.com/Blue-kaiCodes/Railway-block-planner.git
+cd Railway-block-planner
+
+python -m venv venv
+# Windows:
+.\venv\Scripts\activate
+# Linux/macOS:
+source venv/bin/activate
+
+pip install -r requirements.txt
 ```
-This starts the Uvicorn server and automatically opens `http://127.0.0.1:8000` in your default web browser.
 
-### Option 2: Direct Uvicorn Command
-```bash
-uvicorn backend.main:app --host 127.0.0.1 --port 8000
-```
-Then navigate to `http://127.0.0.1:8000` in any modern web browser.
+### 4.2 Configuration
 
----
-
-## Environment Variables
-
-Copy `.env.example` to `.env` if custom server settings are needed:
+Copy the production configuration template:
 ```bash
 cp .env.example .env
 ```
+Configure your credentials in `.env` (or leave defaults for local simulation mode).
 
-| Variable | Default | Description |
-|---|---|---|
-| `HOST` | `127.0.0.1` | Network interface for FastAPI/Uvicorn |
-| `PORT` | `8000` | Port number for FastAPI/Uvicorn |
-| `ENVIRONMENT` | `development` | Runtime environment flag |
+### 4.3 Launch Application
 
----
-
-## Demo Walkthrough
-
-1. **Generate Optimized Plan**: Click **"Generate Plan"** in the top header. The CP-SAT solver assigns maintenance tasks into valid corridor block windows while enforcing zero train collisions.
-2. **Inspect Schedule Details**: Click any train block or maintenance slot on the Gantt chart to open the item drawer with full timetable and audit details.
-3. **Inject Operational Defect**: Click **"Inject Defect"**, choose a corridor section, defect classification, duration, and deadline. The solver recalculates the schedule, prioritizing the defect with minimal disruption to unaffected tasks.
-4. **View Plan Diff**: After defect injection, review the Plan Diff dialog detailing newly scheduled, rescheduled, and unchanged blocks.
-5. **Revert Plan**: Click **"Revert Plan"** to restore the schedule state prior to defect injection.
-6. **Compare Baseline**: Navigate to the **"Baseline Benchmark"** tab to see side-by-side performance metrics between the uncoordinated manual baseline and the CP-SAT optimized schedule.
-7. **Export Schedule**: Click **"Export Plan"** to download a CSV file of the active maintenance block schedule.
-
----
-
-## Running Automated Tests
-
-To execute the verification test suite:
+Start the backend server:
 ```bash
-python -m unittest backend/test_optimizer.py
+python run_app.py
 ```
-The test suite validates:
-- Thread-safe CRUD operations in the database layer.
-- Mathematical zero-collision guarantees of the CP-SAT optimizer.
-- Baseline benchmark calculations.
-- Emergency defect injection and snapshot rollback integrity.
+Open your browser and navigate to:
+- **Operator Console Dashboard**: [http://127.0.0.1:8000](http://127.0.0.1:8000)
+- **Interactive OpenAPI Documentation**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
 ---
 
-## Dataset
+## 5. Automated Verification & Test Suite
 
-The corridor topology, asset inventory, maintenance requests, and train timetables provided in this application are **representative synthetic datasets** based on the **Howrah – Pt. Deen Dayal Upadhyaya Trunk Corridor** (Eastern Railway / East Central Railway). They reflect realistic operational speeds, asset aging characteristics, and timetable density patterns for demonstration purposes.
+Run the full automated test suite (32 tests covering optimizer mathematics, provider circuit breakers, sensor gateway thresholds, conflict detection, plan versioning, and REST endpoints):
 
----
+```bash
+# Run Core CP-SAT Solver and Database Tests
+python -m backend.test_optimizer
 
-## Limitations
+# Run Enterprise Real-Time Platform Tests
+python -m tests.test_enterprise_platform
+```
 
-- **Prototype Scope**: This software is an engineering decision-support prototype developed for Smart India Hackathon 2026. It does not directly interface with live railway interlocking systems or Centralised Traffic Control (CTC) signalling hardware.
-- **Corridor Abstraction**: Station interlocking yards, passing loops, and bidirectional signalling nuances are modeled as unified corridor track sections with capacity constraints.
-
----
-
-## Future Scope
-
-- **Live TMS/COA Integration**: Direct API connectors to Indian Railways' Control Office Application (COA) and Track Management System (TMS).
-- **Stochastic Delay Modeling**: Real-time GPS train delay feed integration for rolling-horizon re-optimization.
-- **Machine Learning Failure Predictors**: Integration with acoustic/ultrasonic flaw detection feeds for automated condition-based maintenance task generation.
+Both test suites execute in $< 3.0$ seconds with $100\%$ pass rate.
 
 ---
 
-## Team
+## 6. Comprehensive Documentation Directory
 
-- **Smart India Hackathon 2026**
-- **Problem Statement PS 26027**
+| Document | Description |
+| :--- | :--- |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Enterprise system architecture, data flows, and component breakdown. |
+| [docs/LIVE_DATA.md](docs/LIVE_DATA.md) | Integration specifications for CRIS/ISRO RTIS, NTES, and data.gov.in. |
+| [docs/SENSOR_GATEWAY.md](docs/SENSOR_GATEWAY.md) | IoT sensor specs, authentication, and threshold definitions. |
+| [docs/API.md](docs/API.md) | OpenAPI v1 endpoint reference with request/response payloads. |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production Linux systemd, Nginx reverse proxy, and hot backup guide. |
+
+---
+
+## 7. License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.

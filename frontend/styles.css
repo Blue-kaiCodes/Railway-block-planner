@@ -1514,4 +1514,134 @@ body {
   text-decoration: underline;
 }
 
+/* ==============================================================================
+   ENTERPRISE REAL-TIME TELEMETRY & OPERATOR APPROVAL WORKFLOW
+   ============================================================================== */
+
+.provider-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.provider-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.provider-dot.live { background-color: #145C42; box-shadow: 0 0 0 2px rgba(20,92,66,0.2); }
+.provider-dot.simulated { background-color: #B87314; }
+.provider-dot.offline { background-color: #A83232; }
+
+.simulation-disclaimer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  background-color: #FFF3CD;
+  color: #856404;
+  border: 1px solid #FFEEBA;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.candidate-approval-banner {
+  background-color: #FCF6EC;
+  border: 1px solid #F0D4AA;
+  border-left: 5px solid #B87314;
+  border-radius: 4px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.candidate-approval-banner.approved {
+  background-color: #EDF5F1;
+  border-color: #BCD8CB;
+  border-left-color: #145C42;
+}
+
+.candidate-banner-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1C201D;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.candidate-banner-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.diff-badge-shift {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-block;
+}
+.diff-shift-positive { background-color: #FFF3CD; color: #856404; }
+.diff-shift-negative { background-color: #D1ECF1; color: #0C5460; }
+.diff-shift-unassigned { background-color: #F8D7DA; color: #721C24; }
+.diff-shift-new { background-color: #D4EDDA; color: #155724; }
+
+.sensor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.sensor-tile {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.sensor-tile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.sensor-tile-title {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.sensor-tile-body {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.sensor-value-highlight {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 4px 0;
+}
+
 

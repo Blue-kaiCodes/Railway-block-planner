@@ -1,8 +1,9 @@
 import csv
 import io
 import os
+from contextlib import asynccontextmanager
 from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Response, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -13,6 +14,17 @@ from backend.schemas import (
     BlockWindow, BlockWindowUpdate,
     EmergencyDefectRequest
 )
+from backend.canonical_schemas import (
+    SensorIngestPayload, SensorEntity, NormalizedTrainState, BlockState,
+    CorridorConflict, PlanVersion, OperatorDecisionRequest, RailwayEvent,
+    EventType, EventSeverity
+)
+from backend.railway_state import state_store, get_state_store
+from backend.providers.manager import provider_manager, get_provider_manager
+from backend.sensor_gateway import sensor_gateway, get_sensor_gateway
+from backend.conflict_engine import conflict_engine, get_conflict_engine
+from backend.plan_engine import plan_engine, get_plan_engine
+
 from backend.optimizer import run_optimization
 from backend.baseline_solver import calculate_baseline_comparison
 from backend.explainability import generate_task_explanation, generate_plan_summary, generate_unassigned_explanation
@@ -22,10 +34,20 @@ from backend.station_data import (
 )
 from backend.train_provider import train_provider
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize sensors and background polling providers
+    sensor_gateway.seed_default_sensors()
+    await provider_manager.start()
+    yield
+    # Graceful shutdown
+    await provider_manager.stop()
+
 app = FastAPI(
     title="Railway Maintenance Block Planning & Optimization System (PS 26027)",
     description="Enterprise Decision-Support Platform for Indian Railways Corridor Operations",
-    version="2.0.0"
+    version="2.0.0",
+    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -536,6 +558,119 @@ def import_scenario_endpoint(scenario: Dict[str, Any]) -> Dict[str, Any]:
 @app.get("/api/export/dataset")
 def export_dataset_json():
     return db.get_all()
+
+# ==============================================================================
+# V1 ENTERPRISE REAL-TIME RAILWAY OPERATIONS API
+# ==============================================================================
+
+@app.get("/api/v1/providers/health")
+def get_providers_health() -> Dict[str, Any]:
+    return provider_manager.get_health_summary()
+
+@app.post("/api/v1/events/sensor")
+def ingest_sensor_event(
+    payload: SensorIngestPayload,
+    x_sensor_token: Optional[str] = Header(None, alias="X-Sensor-Token")
+) -> Dict[str, Any]:
+    if not sensor_gateway.validate_token(x_sensor_token):
+        raise HTTPException(status_code=401, detail="Invalid or missing X-Sensor-Token header.")
+    return sensor_gateway.ingest_payload(payload)
+
+@app.get("/api/v1/sensors")
+def list_sensors() -> List[SensorEntity]:
+    return state_store.get_all_sensors()
+
+@app.get("/api/v1/sensors/{sensor_id}/telemetry")
+def get_sensor_telemetry(sensor_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+    return state_store.get_recent_telemetry(sensor_id, limit=limit)
+
+@app.get("/api/v1/trains/live")
+def list_live_trains() -> List[NormalizedTrainState]:
+    return state_store.get_all_train_states()
+
+@app.get("/api/v1/trains/{train_id}")
+def get_train_state(train_id: str) -> NormalizedTrainState:
+    t = state_store.get_train_state(train_id)
+    if not t:
+        raise HTTPException(status_code=404, detail=f"Train {train_id} not found in live tracking.")
+    return t
+
+@app.get("/api/v1/blocks/state")
+def list_block_states() -> List[BlockState]:
+    return state_store.get_all_block_states()
+
+@app.get("/api/v1/blocks/{block_id}")
+def get_block_state(block_id: str) -> BlockState:
+    b = state_store.get_block_state(block_id)
+    if not b:
+        raise HTTPException(status_code=404, detail=f"Block {block_id} not found.")
+    return b
+
+@app.get("/api/v1/conflicts")
+def get_active_conflicts() -> List[CorridorConflict]:
+    return conflict_engine.evaluate_corridor()
+
+@app.post("/api/v1/conflicts/{conflict_id}/resolve")
+def resolve_conflict(conflict_id: str) -> Dict[str, Any]:
+    state_store.resolve_conflict(conflict_id)
+    return {"status": "SUCCESS", "message": f"Conflict {conflict_id} resolved."}
+
+@app.get("/api/v1/plans/active")
+def get_active_plan() -> Optional[PlanVersion]:
+    return state_store.get_active_plan()
+
+@app.get("/api/v1/plans/candidate")
+def get_candidate_plan() -> Optional[PlanVersion]:
+    return state_store.get_pending_candidate_plan()
+
+@app.get("/api/v1/plans/history")
+def list_plan_versions() -> List[PlanVersion]:
+    return state_store.get_all_plan_versions()
+
+@app.get("/api/v1/plans/{plan_id}")
+def get_plan_by_id(plan_id: str) -> PlanVersion:
+    p = state_store.get_plan_version(plan_id)
+    if not p:
+        raise HTTPException(status_code=404, detail=f"Plan {plan_id} not found.")
+    return p
+
+@app.post("/api/v1/plans/reoptimize")
+def trigger_plan_reoptimization(req: Optional[Dict[str, Any]] = None) -> PlanVersion:
+    triggered_by = (req or {}).get("triggered_by", "MANUAL_OPERATOR_REQUEST")
+    reason = (req or {}).get("reason", "Operator initiated corridor re-optimization")
+    return plan_engine.generate_candidate_plan(triggered_by=triggered_by, reason=reason)
+
+@app.post("/api/v1/plans/{plan_id}/approve")
+def approve_candidate_plan(plan_id: str, decision: Optional[OperatorDecisionRequest] = None) -> PlanVersion:
+    reviewer = decision.operator_name if decision and decision.operator_name else "Chief Traffic Controller"
+    comments = decision.comments if decision else None
+    try:
+        return plan_engine.approve_candidate_plan(plan_id, reviewer=reviewer, comments=comments)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+
+@app.post("/api/v1/plans/{plan_id}/reject")
+def reject_candidate_plan(plan_id: str, decision: Optional[OperatorDecisionRequest] = None) -> PlanVersion:
+    reviewer = decision.operator_name if decision and decision.operator_name else "Chief Traffic Controller"
+    reason = decision.rejection_reason if decision and decision.rejection_reason else "Rejected by Chief Controller"
+    try:
+        return plan_engine.reject_candidate_plan(plan_id, reviewer=reviewer, reason=reason)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+
+@app.get("/api/v1/events")
+def get_events(limit: int = 50, event_type: Optional[str] = None, severity: Optional[str] = None) -> List[RailwayEvent]:
+    return state_store.get_recent_events(limit=limit, event_type=event_type, severity=severity)
+
+@app.post("/api/v1/simulation/inject-disturbance")
+def inject_simulation_disturbance(payload: Dict[str, Any]) -> Dict[str, Any]:
+    dtype = payload.get("disturbance_type", "TRAIN_DELAY")
+    target = payload.get("target_id", "12301")
+    val = payload.get("value", 600)
+    evt = provider_manager.inject_simulation_disturbance(dtype, target, val)
+    if not evt:
+        raise HTTPException(status_code=400, detail="Simulation disturbance could not be applied. Check if ENABLE_SIMULATION_PROVIDER is active.")
+    return {"status": "SUCCESS", "event": evt.model_dump()}
 
 frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
 if os.path.exists(frontend_path):

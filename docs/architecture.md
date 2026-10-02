@@ -1,63 +1,55 @@
-﻿# System Architecture
+# System Architecture & Technical Specifications
 
-## Overview
-The **Railway Block Planner** is designed as a lightweight, deterministic decision-support system for railway corridor operations. It synchronizes departmental maintenance requests across Engineering, Signal & Telecom (S&T), and Traction (OHE) with master passenger and freight train timetables.
+> The comprehensive enterprise technical specifications and architecture diagrams are documented in **[docs/ARCHITECTURE.md](ARCHITECTURE.md)**.
+>
+> Complementary architectural guides:
+> - **[docs/LIVE_DATA.md](LIVE_DATA.md)**: CRIS/ISRO RTIS and NTES Integration Specifications.
+> - **[docs/SENSOR_GATEWAY.md](SENSOR_GATEWAY.md)**: Trackside IoT Telemetry & Threshold Definitions.
+> - **[docs/API.md](API.md)**: REST API V1 OpenAPI Reference.
+> - **[docs/DEPLOYMENT.md](DEPLOYMENT.md)**: Production Deployment & Systemd Operations Guide.
 
-## Component Breakdown
+---
 
-\\\
+## High-Level Operational Architecture
+
+The **Railway Block Planner** operates on a modular, multi-tier architecture designed for continuous real-time decision support on dense Indian Railways corridors:
+
+```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Web Browser Interface                        │
 │   (Vanilla ES6+ JavaScript, Responsive Grid CSS, FontAwesome)    │
+│   - Provider Health & Authenticity Status Pill                  │
+│   - Live Fleet Grid & IoT Sensor Tile Matrix                    │
+│   - Candidate Plan Review Drawer & Shift Diff Visualizer        │
+│   - Corridor Timeline Gantt Chart & Conflict Alerts             │
 └───────────────────────────────┬─────────────────────────────────┘
-                                │ HTTP REST JSON APIs
+                                │ HTTP REST JSON APIs (v1)
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                    FastAPI Application Server                   │
-│   - Static File Serving (/)                                   │
-│   - Dataset & Stats Endpoints (/api/dataset, /api/stats)    │
-│   - Task, Train, and Block CRUD (/api/tasks, /api/trains)  │
-│   - Dynamic Optimization Handlers (/api/optimize)             │
-│   - Emergency Defect Injection & Rollback                       │
+│   - Static File Serving (/)                                     │
+│   - Provider Health (/api/v1/providers/health)                  │
+│   - Sensor Telemetry Ingest (/api/v1/events/sensor)             │
+│   - Live Fleet & Blocks (/api/v1/trains, /api/v1/blocks)       │
+│   - Conflict Management (/api/v1/conflicts)                     │
+│   - Re-Optimization & Plan Approval (/api/v1/plans)            │
 └───────┬───────────────────────┬─────────────────────────┬───────┘
         │                       │                         │
         ▼                       ▼                         ▼
 ┌──────────────────┐  ┌──────────────────┐  ┌─────────────────────┐
-│  Data Repository │  │  Google OR-Tools │  │ Baseline Benchmark  │
-│  (JSON File-     │  │  CP-SAT Solver   │  │ Simulator (FCFS     │
-│  Backed Store)   │  │  (Constraint     │  │ Uncoordinated       │
-│  datastore.json│  │   Optimization)  │  │ Departmental Model) │
+│  State Store     │  │  Google OR-Tools │  │  Conflict Detection │
+│  (SQLite WAL     │  │  CP-SAT Solver   │  │  Engine             │
+│   Mode DB)       │  │  (Constraint     │  │  (Headway, Speed,   │
+│  railway_state.db│  │   Optimization)  │  │   Drift, Occupancy) │
 └──────────────────┘  └──────────────────┘  └─────────────────────┘
-                                │
-                                ▼
-                      ┌──────────────────┐
-                      │  Explainability  │
-                      │  Audit Engine    │
-                      │  (Plain-English  │
-                      │   Decision Log)  │
-                      └──────────────────┘
-\\\
+        ▲                       │                         ▲
+        │                       ▼                         │
+┌───────┴──────────┐  ┌──────────────────┐  ┌─────────────┴───────┐
+│  Sensor Gateway  │  │  Candidate Plan  │  │ External Providers  │
+│  (X-Sensor-Token │  │  Engine          │  │ (RTIS, NTES, OGD,   │
+│   Auth & Limits) │  │  (PLAN-00X Diffs │  │  Simulation Engine) │
+│                  │  │   & Approvals)   │  │                     │
+└──────────────────┘  └──────────────────┘  └─────────────────────┘
+```
 
-### 1. Presentation Layer (rontend/)
-- Single-page application built with clean HTML5, custom CSS (Inter typography, responsive data density, zero bloated external JS frameworks), and modern JavaScript.
-- Interactive components:
-  - Corridor timeline Gantt chart with interactive inspection drawers.
-  - CRUD modals for maintenance tasks, train timetables, block windows, and emergency defect injection.
-  - Multi-criteria task filtering, text search, and column sorting.
-  - Tab views for operations overview, corridor topology, audit logs, benchmark comparisons, and plan history.
-
-### 2. API & Routing Layer (ackend/main.py)
-- Powered by FastAPI, exposing type-safe REST endpoints validated with Pydantic schemas (ackend/schemas.py).
-- Manages CORS, asynchronous request handling, CSV export streaming, and atomic plan rollback states.
-
-### 3. Constraint Optimization Engine (ackend/optimizer.py)
-- Implemented using Google OR-Tools CP-SAT (Constraint Programming - Satisfiability).
-- Formulates maintenance block scheduling as an integer programming problem with strict hard constraints (zero train collisions, single track occupancy, department-window compatibility, daily crew gang limits) and multi-term objective functions.
-
-### 4. Baseline Simulation Engine (ackend/baseline_solver.py)
-- Simulates real-world legacy operations where individual departments request and receive blocks on a first-come, first-served basis during shift mobilization hours without automated timetable conflict checking.
-- Computes empirical conflict counts, train delay minutes, and corridor window utilization to provide a mathematically grounded benchmark against the CP-SAT optimizer.
-
-### 5. Data Persistence (ackend/database.py)
-- Thread-safe, file-backed repository (data/datastore.json) providing instant state persistence across sessions and browser reloads.
-- Includes pre-optimization snapshotting to support one-click rollback following emergency rescheduling.
+For complete technical specifications, see [docs/ARCHITECTURE.md](ARCHITECTURE.md).

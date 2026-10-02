@@ -30,6 +30,12 @@
           <div class="nav-item active" onclick="switchTab('dashboard', this)">
             <i class="fa-solid fa-gauge-high"></i> Operations Overview
           </div>
+          <div class="nav-item" onclick="switchTab('liveSensors', this)">
+            <i class="fa-solid fa-tower-broadcast"></i> Live Fleet & IoT Sensors
+          </div>
+          <div class="nav-item" onclick="switchTab('conflicts', this)">
+            <i class="fa-solid fa-triangle-exclamation"></i> Corridor Conflicts
+          </div>
           <div class="nav-item" onclick="switchTab('planResult', this)">
             <i class="fa-solid fa-square-poll-vertical"></i> Latest Plan Result
           </div>
@@ -96,6 +102,17 @@
           </div>
           <span><i class="fa-regular fa-clock"></i> <span id="liveOperatingTime">10:30:00 IST</span></span>
           <span id="solverStateIndicator" style="display:inline-flex; align-items:center; gap:4px; font-size:11px; color:var(--text-secondary);"><span class="dot dot-gray" id="solverStateDot"></span> <span id="solverStateText">Solver Ready</span></span>
+          
+          <!-- Live Railway Data Provider Status Pill -->
+          <div id="providerStatusContainer" style="display:inline-flex; align-items:center; gap:6px;">
+            <div id="providerStatusPill" class="provider-status-pill">
+              <span id="providerDot" class="provider-dot simulated"></span>
+              <span id="providerNameText">RTIS: CONNECTING</span>
+            </div>
+            <div id="simulationDisclaimerBadge" class="simulation-disclaimer-pill" style="display:none;" title="Offline simulation feed active for development and testing. Zero fabricated live data.">
+              <i class="fa-solid fa-flask"></i> SIMULATION (NOT LIVE DATA)
+            </div>
+          </div>
         </div>
 
         <div class="header-actions">
@@ -104,12 +121,31 @@
           <button id="revertPlanBtn" class="btn btn-secondary" style="display:none;" onclick="triggerRevertPlan()"><i class="fa-solid fa-rotate-left"></i> Revert Plan</button>
           <button class="btn btn-secondary" onclick="exportCSV()"><i class="fa-solid fa-download"></i> Export Plan</button>
           <button id="generatePlanBtn" class="btn btn-primary" onclick="triggerOptimize()"><i class="fa-solid fa-circle-play" id="generatePlanIcon"></i> <span id="generatePlanBtnText">Generate Plan</span></button>
+          <button class="btn btn-secondary" onclick="openDisturbanceModal()"><i class="fa-solid fa-bolt"></i> Sim Disturbance</button>
           <button class="btn btn-danger" onclick="openDefectModal()"><i class="fa-solid fa-triangle-exclamation"></i> Inject Defect</button>
         </div>
       </header>
 
       <!-- Scrollable Content Body -->
       <div class="content-body">
+
+        <!-- Candidate Plan Review & Approval Banner (Chief Controller Decision Support) -->
+        <div id="candidatePlanBanner" class="candidate-approval-banner" style="display: none;">
+          <div>
+            <div class="candidate-banner-title">
+              <i class="fa-solid fa-clipboard-check" style="color:#B87314; font-size:16px;"></i>
+              <span>CANDIDATE RE-OPTIMIZATION PLAN: <span id="candidatePlanId" style="color:var(--text-primary);">PLAN-00X</span> (<span id="candidatePlanStatus">PENDING OPERATOR APPROVAL</span>)</span>
+            </div>
+            <div class="candidate-banner-meta" id="candidatePlanMeta">
+              Google OR-Tools CP-SAT re-optimization completed. Schedule shifts calculated to resolve corridor delays. Awaiting formal Chief Controller sign-off.
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button class="btn btn-secondary btn-sm" onclick="openCandidatePlanModal()"><i class="fa-solid fa-code-compare"></i> Review Plan Diff</button>
+            <button class="btn btn-primary btn-sm" onclick="quickApproveCandidatePlan()"><i class="fa-solid fa-check"></i> Approve Plan</button>
+            <button class="btn btn-danger btn-sm" onclick="quickRejectCandidatePlan()"><i class="fa-solid fa-xmark"></i> Reject</button>
+          </div>
+        </div>
 
         <!-- Operational Alert Banner -->
         <div id="emergencyBanner" class="alert-banner" style="display: none;">
@@ -767,12 +803,246 @@
           </div>
         </main>
 
+        <!-- TAB 10: LIVE FLEET & IOT TRACK SENSORS -->
+        <main id="tabLiveSensors" class="tab-content" style="display: none;">
+          <!-- Section 1: Live Train Fleet Telemetry -->
+          <div class="section-panel" style="margin-bottom:16px;">
+            <div class="panel-header">
+              <div class="panel-title">
+                <i class="fa-solid fa-train"></i> Live Corridor Train Telemetry (CRIS/ISRO RTIS & NTES Feed)
+              </div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="badge-label badge-green" id="fleetFreshnessBadge"><i class="fa-solid fa-signal"></i> Telemetry Active</span>
+                <button class="btn btn-secondary btn-xs" onclick="refreshLiveFleet()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+              </div>
+            </div>
+            <table class="enterprise-table" id="liveFleetTable">
+              <thead>
+                <tr>
+                  <th>Train No.</th>
+                  <th>Service Name</th>
+                  <th>Direction</th>
+                  <th>Speed (km/h)</th>
+                  <th>Section</th>
+                  <th>Status</th>
+                  <th>Accumulated Delay</th>
+                  <th>Data Source</th>
+                  <th>Timestamp</th>
+                </tr>
+              </thead>
+              <tbody id="liveFleetTbody">
+                <tr><td colspan="9" style="text-align:center; padding:16px; color:var(--text-muted);">Polling live railway train telemetry...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Section 2: IoT Track Health & Safety Sensors -->
+          <div class="section-panel" style="margin-bottom:16px;">
+            <div class="panel-header">
+              <div class="panel-title">
+                <i class="fa-solid fa-microchip"></i> Track & Infrastructure IoT Sensors (Axle Counters, Rail Temp, Water Level, Geometry)
+              </div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <button class="btn btn-secondary btn-xs" onclick="refreshSensors()"><i class="fa-solid fa-rotate"></i> Refresh Sensors</button>
+              </div>
+            </div>
+            <div class="sensor-grid" id="sensorGridContainer">
+              <!-- Rendered dynamically via renderSensorsGrid() -->
+            </div>
+          </div>
+
+          <!-- Section 3: Real-Time Event Audit Stream -->
+          <div class="section-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <i class="fa-solid fa-timeline"></i> Canonical Real-Time Railway Event Stream
+              </div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <select id="eventSeverityFilter" class="select-filter" onchange="filterEventsTable(this.value)">
+                  <option value="ALL">All Severities</option>
+                  <option value="CRITICAL">Critical & Emergency</option>
+                  <option value="WARNING">Warnings</option>
+                  <option value="INFO">Info</option>
+                </select>
+                <button class="btn btn-secondary btn-xs" onclick="refreshEvents()"><i class="fa-solid fa-rotate"></i> Refresh Events</button>
+              </div>
+            </div>
+            <table class="enterprise-table" id="eventsTable">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Severity</th>
+                  <th>Source</th>
+                  <th>Event Type</th>
+                  <th>Entity / Section</th>
+                  <th>Event Description</th>
+                </tr>
+              </thead>
+              <tbody id="eventsTbody">
+                <tr><td colspan="6" style="text-align:center; padding:16px; color:var(--text-muted);">Awaiting real-time event updates...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </main>
+
+        <!-- TAB 11: CORRIDOR CONFLICTS & RE-OPTIMIZATION AUDIT -->
+        <main id="tabConflicts" class="tab-content" style="display: none;">
+          <div class="section-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <i class="fa-solid fa-triangle-exclamation" style="color:var(--accent-red);"></i> Active Corridor Conflicts & Bottlenecks
+              </div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <button class="btn btn-primary btn-xs" onclick="triggerOptimize()"><i class="fa-solid fa-circle-play"></i> Resolve via CP-SAT Re-Optimization</button>
+                <button class="btn btn-secondary btn-xs" onclick="refreshConflicts()"><i class="fa-solid fa-rotate"></i> Evaluate Now</button>
+              </div>
+            </div>
+
+            <table class="enterprise-table" id="conflictsTable">
+              <thead>
+                <tr>
+                  <th>Conflict ID</th>
+                  <th>Conflict Classification</th>
+                  <th>Severity</th>
+                  <th>Corridor Section</th>
+                  <th>Affected Trains / Blocks</th>
+                  <th>Description & Operational Impact</th>
+                  <th>Detected At</th>
+                  <th>Status / Action</th>
+                </tr>
+              </thead>
+              <tbody id="conflictsTbody">
+                <tr><td colspan="8" style="text-align:center; padding:16px; color:var(--text-muted);">No active corridor conflicts detected. Network flow is clear.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </main>
+
       </div>
 
       <!-- Footer Safety Boundary Note -->
       <footer class="safety-note">
         Decision-support prototype for SIH 2026 PS 26027. Final operational authorization remains with designated Indian Railways personnel.
       </footer>
+    </div>
+  </div>
+
+  <!-- MODAL: CANDIDATE PLAN REVIEW & APPROVAL -->
+  <div id="candidatePlanModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:850px;">
+      <div class="modal-title">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <i class="fa-solid fa-clipboard-check" style="color:var(--accent-amber);"></i>
+          <span>Candidate Plan Review & Operator Decision: <span id="modalPlanVersionId">PLAN-00X</span></span>
+        </div>
+        <button onclick="closeModal('candidatePlanModal')" style="background:none; border:none; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div style="padding:16px; max-height:75vh; overflow-y:auto;">
+        <!-- Metrics Row -->
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-bottom:16px;">
+          <div style="background:var(--bg-main); padding:10px 12px; border-radius:4px; border:1px solid var(--border-color);">
+            <div style="font-size:10.5px; color:var(--text-secondary); text-transform:uppercase;">CP-SAT Solver</div>
+            <div style="font-size:15px; font-weight:700; color:var(--accent-green);" id="modalSolverStatus">OPTIMAL</div>
+          </div>
+          <div style="background:var(--bg-main); padding:10px 12px; border-radius:4px; border:1px solid var(--border-color);">
+            <div style="font-size:10.5px; color:var(--text-secondary); text-transform:uppercase;">Solve Duration</div>
+            <div style="font-size:15px; font-weight:700; color:var(--text-primary);" id="modalSolveTime">0.04s</div>
+          </div>
+          <div style="background:var(--bg-main); padding:10px 12px; border-radius:4px; border:1px solid var(--border-color);">
+            <div style="font-size:10.5px; color:var(--text-secondary); text-transform:uppercase;">Tasks Scheduled</div>
+            <div style="font-size:15px; font-weight:700; color:var(--accent-green);" id="modalTasksScheduled">5 / 5</div>
+          </div>
+          <div style="background:var(--bg-main); padding:10px 12px; border-radius:4px; border:1px solid var(--border-color);">
+            <div style="font-size:10.5px; color:var(--text-secondary); text-transform:uppercase;">Schedule Shifts</div>
+            <div style="font-size:15px; font-weight:700; color:var(--accent-amber);" id="modalShiftsCount">2</div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <div style="font-weight:700; font-size:12px; margin-bottom:6px;">Plan Change Diff (Active Plan vs Candidate Plan):</div>
+          <table class="enterprise-table" id="modalPlanDiffTable">
+            <thead>
+              <tr>
+                <th>Task ID</th>
+                <th>Task Description</th>
+                <th>Section</th>
+                <th>Action</th>
+                <th>Active Window</th>
+                <th>Proposed Candidate Window</th>
+                <th>Shift</th>
+                <th>Operational Impact & Rationale</th>
+              </tr>
+            </thead>
+            <tbody id="modalPlanDiffTbody">
+              <tr><td colspan="8" style="text-align:center; padding:12px;">No schedule diffs detected.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-weight:600; font-size:11px;">Authorizing Controller / Chief Controller Name:</label>
+          <input type="text" id="modalControllerName" class="form-control" value="Chief Traffic Controller Kumar">
+        </div>
+
+        <div class="form-group" style="margin-bottom:16px;">
+          <label style="font-weight:600; font-size:11px;">Operational Remarks / Controller Authorization Notes:</label>
+          <textarea id="modalControllerComments" class="form-control" rows="2" placeholder="e.g. Approved shift of track tamping on SEC-01 to accommodate delayed Rajdhani 12301."></textarea>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button class="btn btn-secondary" onclick="closeModal('candidatePlanModal')">Cancel</button>
+          <button class="btn btn-danger" onclick="executePlanRejection()"><i class="fa-solid fa-xmark"></i> Reject Candidate Plan</button>
+          <button class="btn btn-primary" onclick="executePlanApproval()"><i class="fa-solid fa-check"></i> Authorize & Activate Plan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SIMULATE TEST DISTURBANCE -->
+  <div id="simulateDisturbanceModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:500px;">
+      <div class="modal-title">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <i class="fa-solid fa-bolt" style="color:var(--accent-amber);"></i>
+          <span>Simulate Corridor Disturbance (Development Testing)</span>
+        </div>
+        <button onclick="closeModal('simulateDisturbanceModal')" style="background:none; border:none; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div style="padding:16px;">
+        <p style="font-size:11.5px; color:var(--text-secondary); margin-bottom:14px;">
+          Inject a controlled real-time disturbance into the simulation provider to test live conflict detection, CP-SAT re-optimization, and the operator plan approval workflow.
+        </p>
+
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-weight:600; font-size:11px;">Disturbance Type:</label>
+          <select id="simDisturbanceType" class="form-control" onchange="handleDisturbanceTypeChange(this.value)">
+            <option value="TRAIN_DELAY">Train Schedule Delay (Signal Hold / Section Crossing)</option>
+            <option value="SPEED_RESTRICTION">Emergency Thermal Speed Restriction (High Rail Temp)</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom:12px;" id="simTargetGroup">
+          <label style="font-weight:600; font-size:11px;">Target Train / Section:</label>
+          <select id="simTargetSelect" class="form-control">
+            <option value="12301">Train 12301 - Howrah Rajdhani Express (SEC-01)</option>
+            <option value="12313">Train 12313 - Sealdah Rajdhani Express (SEC-02)</option>
+            <option value="22435">Train 22435 - Vande Bharat Express (SEC-04)</option>
+            <option value="12302">Train 12302 - New Delhi Howrah Rajdhani (SEC-05)</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom:16px;">
+          <label style="font-weight:600; font-size:11px;" id="simValueLabel">Delay Duration (Minutes):</label>
+          <input type="number" id="simValueInput" class="form-control" value="15" min="1" max="180">
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button class="btn btn-secondary" onclick="closeModal('simulateDisturbanceModal')">Cancel</button>
+          <button class="btn btn-primary" onclick="submitSimulationDisturbance()"><i class="fa-solid fa-bolt"></i> Inject Disturbance</button>
+        </div>
+      </div>
     </div>
   </div>
 

@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
   startLiveClock();
   initStationDirectory();
   initLiveProviderStatus();
+  initEnterpriseRealtimeEngine();
 });
 
 function startLiveClock() {
@@ -2838,7 +2839,7 @@ function exportCSV() {
 // TABS & UTILITIES
 // ==========================================
 function switchTab(tabId, el) {
-  const tabs = ["dashboard", "planResult", "corridor", "tasks", "trains", "blocks", "stations", "explain", "comparison", "history"];
+  const tabs = ["dashboard", "liveSensors", "conflicts", "planResult", "corridor", "tasks", "trains", "blocks", "stations", "explain", "comparison", "history"];
   tabs.forEach(t => {
     const target = document.getElementById(`tab${t.charAt(0).toUpperCase() + t.slice(1)}`);
     if (target) target.style.display = t === tabId ? "block" : "none";
@@ -2852,6 +2853,12 @@ function switchTab(tabId, el) {
 
   if (tabId === "planResult") {
     renderPlanResultFullView();
+  } else if (tabId === "liveSensors") {
+    refreshLiveFleet();
+    refreshSensors();
+    refreshEvents();
+  } else if (tabId === "conflicts") {
+    refreshConflicts();
   }
 }
 
@@ -2880,4 +2887,515 @@ function hideLoading() {
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ==========================================
+// ENTERPRISE REAL-TIME TELEMETRY & APPROVAL WORKFLOW
+// ==========================================
+
+let activeCandidatePlan = null;
+let lastEventsCache = [];
+
+function initEnterpriseRealtimeEngine() {
+  fetchProviderHealth();
+  checkCandidatePlan();
+  refreshLiveFleet();
+  refreshSensors();
+  refreshEvents();
+  refreshConflicts();
+
+  // Background polling intervals
+  setInterval(fetchProviderHealth, 10000);
+  setInterval(checkCandidatePlan, 5000);
+  setInterval(() => {
+    refreshLiveFleet();
+    refreshSensors();
+    refreshConflicts();
+  }, 6000);
+  setInterval(refreshEvents, 5000);
+}
+
+async function fetchProviderHealth() {
+  try {
+    const res = await fetch("/api/v1/providers/health");
+    if (!res.ok) return;
+    const data = await res.json();
+    
+    const dot = document.getElementById("providerDot");
+    const nameText = document.getElementById("providerNameText");
+    const disclaimer = document.getElementById("simulationDisclaimerBadge");
+
+    if (dot && nameText) {
+      if (data.is_live_data) {
+        dot.className = "provider-dot live";
+        nameText.innerText = `${data.primary_source}: LIVE`;
+        if (disclaimer) disclaimer.style.display = "none";
+      } else if (data.data_quality === "SIMULATED") {
+        dot.className = "provider-dot simulated";
+        nameText.innerText = "SIMULATION FEED";
+        if (disclaimer) {
+          disclaimer.style.display = "inline-flex";
+          disclaimer.title = data.disclaimer || "Simulated Development Telemetry";
+        }
+      } else {
+        dot.className = "provider-dot offline";
+        nameText.innerText = "FEED: AUTH REQUIRED";
+        if (disclaimer) disclaimer.style.display = "none";
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to fetch provider health:", err);
+  }
+}
+
+async function checkCandidatePlan() {
+  try {
+    const res = await fetch("/api/v1/plans/candidate");
+    if (!res.ok) return;
+    const plan = await res.json();
+    const banner = document.getElementById("candidatePlanBanner");
+    
+    if (plan && plan.plan_id && plan.status === "PENDING_APPROVAL") {
+      activeCandidatePlan = plan;
+      if (banner) {
+        banner.style.display = "flex";
+        document.getElementById("candidatePlanId").innerText = plan.plan_id;
+        document.getElementById("candidatePlanStatus").innerText = "PENDING CONTROLLER APPROVAL";
+        
+        const diffCount = (plan.diff || []).length;
+        document.getElementById("candidatePlanMeta").innerText = 
+          `Solver: ${plan.solver_status} (${plan.solve_time_seconds}s). ${plan.tasks_scheduled} tasks scheduled, ` +
+          `${diffCount} schedule shifts detected. Recommendation ready for Chief Controller review.`;
+      }
+    } else {
+      activeCandidatePlan = null;
+      if (banner) banner.style.display = "none";
+    }
+  } catch (err) {
+    console.warn("Failed to check candidate plan:", err);
+  }
+}
+
+function openCandidatePlanModal() {
+  if (!activeCandidatePlan) return;
+  const p = activeCandidatePlan;
+  
+  document.getElementById("modalPlanVersionId").innerText = p.plan_id;
+  document.getElementById("modalSolverStatus").innerText = p.solver_status;
+  document.getElementById("modalSolveTime").innerText = `${p.solve_time_seconds}s`;
+  document.getElementById("modalTasksScheduled").innerText = `${p.tasks_scheduled} Tasks`;
+  document.getElementById("modalShiftsCount").innerText = (p.diff || []).length;
+
+  const tbody = document.getElementById("modalPlanDiffTbody");
+  if (tbody) {
+    if (!p.diff || p.diff.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:12px; color:var(--text-muted);">No schedule shifts or diffs detected. Solution matches active baseline.</td></tr>`;
+    } else {
+      tbody.innerHTML = p.diff.map(d => {
+        let badgeClass = "diff-shift-positive";
+        if (d.action === "UNASSIGNED") badgeClass = "diff-shift-unassigned";
+        else if (d.action === "NEWLY_SCHEDULED") badgeClass = "diff-shift-new";
+        else if (d.shift_minutes < 0) badgeClass = "diff-shift-negative";
+
+        const shiftLabel = d.action === "SHIFTED" ? (d.shift_minutes > 0 ? `+${d.shift_minutes}m` : `${d.shift_minutes}m`) : d.action;
+        const oldWindow = d.old_start_hour !== null && d.old_start_hour !== undefined ? `${formatHour(d.old_start_hour)} – ${formatHour(d.old_end_hour)}` : "None";
+        const newWindow = d.new_start_hour !== null && d.new_start_hour !== undefined ? `${formatHour(d.new_start_hour)} – ${formatHour(d.new_end_hour)}` : "Unassigned";
+
+        return `
+          <tr>
+            <td><strong>${escapeHtml(d.task_id)}</strong></td>
+            <td>${escapeHtml(d.task_name || d.task_id)}</td>
+            <td><span class="badge-label badge-blue">${escapeHtml(d.section_id || d.section || "SEC")}</span></td>
+            <td><span class="diff-badge-shift ${badgeClass}">${escapeHtml(d.action)}</span></td>
+            <td style="color:var(--text-secondary); font-family:monospace;">${oldWindow}</td>
+            <td style="font-weight:600; font-family:monospace; color:var(--text-primary);">${newWindow}</td>
+            <td><strong style="color:var(--accent-amber);">${shiftLabel}</strong></td>
+            <td style="font-size:11px; color:var(--text-secondary);">${escapeHtml(d.impact_reason || d.reason || "Re-optimized for corridor capacity")}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+  }
+
+  openModal("candidatePlanModal");
+}
+
+async function executePlanApproval() {
+  if (!activeCandidatePlan) return;
+  const planId = activeCandidatePlan.plan_id;
+  const reviewer = document.getElementById("modalControllerName")?.value || "Chief Traffic Controller";
+  const comments = document.getElementById("modalControllerComments")?.value || "";
+
+  showLoading("Approving Candidate Plan", `Applying ${planId} as active operational plan...`);
+  try {
+    const res = await fetch(`/api/v1/plans/${planId}/approve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        operator_name: reviewer,
+        decision: "APPROVE",
+        comments: comments
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || "Approval failed");
+    }
+    const approvedPlan = await res.json();
+    closeModal("candidatePlanModal");
+    hideLoading();
+    
+    if (approvedPlan.scheduled_items) {
+      AppState.currentSchedule = approvedPlan.scheduled_items;
+      renderGanttChart();
+      renderTasksTable();
+      renderHistoryTable();
+    }
+    
+    document.getElementById("candidatePlanBanner").style.display = "none";
+    activeCandidatePlan = null;
+    
+    alert(`Plan ${planId} successfully AUTHORIZED and ACTIVATED by ${reviewer}.`);
+    fetchInitialData();
+  } catch (e) {
+    hideLoading();
+    alert(`Failed to approve plan: ${e.message}`);
+  }
+}
+
+async function quickApproveCandidatePlan() {
+  if (!activeCandidatePlan) return;
+  if (!confirm(`Are you sure you want to approve and activate candidate plan ${activeCandidatePlan.plan_id}?`)) return;
+  
+  showLoading("Approving Candidate Plan", `Activating ${activeCandidatePlan.plan_id}...`);
+  try {
+    const res = await fetch(`/api/v1/plans/${activeCandidatePlan.plan_id}/approve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        operator_name: "Chief Traffic Controller",
+        decision: "APPROVE",
+        comments: "Quick-approved from operations banner"
+      })
+    });
+    const approvedPlan = await res.json();
+    hideLoading();
+    
+    if (approvedPlan.scheduled_items) {
+      AppState.currentSchedule = approvedPlan.scheduled_items;
+      renderGanttChart();
+      renderTasksTable();
+    }
+    document.getElementById("candidatePlanBanner").style.display = "none";
+    activeCandidatePlan = null;
+    alert(`Candidate plan ${approvedPlan.plan_id} is now ACTIVE.`);
+    fetchInitialData();
+  } catch (e) {
+    hideLoading();
+    alert(`Error: ${e.message}`);
+  }
+}
+
+async function quickRejectCandidatePlan() {
+  if (!activeCandidatePlan) return;
+  const reason = prompt(`Enter reason for rejecting candidate plan ${activeCandidatePlan.plan_id}:`, "Manual override by Chief Controller");
+  if (!reason) return;
+
+  try {
+    const res = await fetch(`/api/v1/plans/${activeCandidatePlan.plan_id}/reject`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        operator_name: "Chief Traffic Controller",
+        decision: "REJECT",
+        rejection_reason: reason
+      })
+    });
+    const rejectedPlan = await res.json();
+    document.getElementById("candidatePlanBanner").style.display = "none";
+    activeCandidatePlan = null;
+    alert(`Plan ${rejectedPlan.plan_id} has been REJECTED. Previous active plan retained.`);
+  } catch (e) {
+    alert(`Error rejecting plan: ${e.message}`);
+  }
+}
+
+async function executePlanRejection() {
+  if (!activeCandidatePlan) return;
+  const reason = document.getElementById("modalControllerComments")?.value || "Rejected during controller review";
+  try {
+    await fetch(`/api/v1/plans/${activeCandidatePlan.plan_id}/reject`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        operator_name: document.getElementById("modalControllerName")?.value || "Chief Traffic Controller",
+        decision: "REJECT",
+        rejection_reason: reason
+      })
+    });
+    closeModal("candidatePlanModal");
+    document.getElementById("candidatePlanBanner").style.display = "none";
+    activeCandidatePlan = null;
+    alert("Candidate plan rejected. Active operational plan remains unchanged.");
+  } catch (e) {
+    alert(`Error: ${e.message}`);
+  }
+}
+
+async function refreshLiveFleet() {
+  try {
+    const res = await fetch("/api/v1/trains/live");
+    if (!res.ok) return;
+    const trains = await res.json();
+    const tbody = document.getElementById("liveFleetTbody");
+    if (!tbody) return;
+
+    if (!trains || trains.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:16px; color:var(--text-muted);">No live train records currently registered.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = trains.map(t => {
+      const delayMin = Math.round((t.delay_seconds || 0) / 60);
+      const delayBadge = delayMin > 5 
+        ? `<span class="badge-label badge-red">+${delayMin}m Delay</span>` 
+        : `<span class="badge-label badge-green">On-Time</span>`;
+
+      const qualBadge = t.data_quality === "LIVE"
+        ? `<span class="badge-label badge-green"><i class="fa-solid fa-satellite"></i> LIVE</span>`
+        : `<span class="badge-label badge-amber"><i class="fa-solid fa-flask"></i> SIMULATED</span>`;
+
+      return `
+        <tr>
+          <td><strong>${escapeHtml(t.train_id)}</strong></td>
+          <td>${escapeHtml(t.train_name || "Express Service")}</td>
+          <td><span class="badge-label badge-gray">${escapeHtml(t.direction)}</span></td>
+          <td style="font-weight:700;">${Math.round(t.speed_kmph || 0)} km/h</td>
+          <td><span class="badge-label badge-blue">${escapeHtml(t.current_section || "SEC")}</span></td>
+          <td><span class="badge-label ${t.status === 'RUNNING' ? 'badge-green' : 'badge-amber'}">${escapeHtml(t.status)}</span></td>
+          <td>${delayBadge}</td>
+          <td>${qualBadge}</td>
+          <td style="font-size:11px; color:var(--text-secondary);">${new Date(t.timestamp).toLocaleTimeString()}</td>
+        </tr>
+      `;
+    }).join("");
+  } catch (err) {
+    console.warn("Failed to refresh live fleet:", err);
+  }
+}
+
+async function refreshSensors() {
+  try {
+    const res = await fetch("/api/v1/sensors");
+    if (!res.ok) return;
+    const sensors = await res.json();
+    const container = document.getElementById("sensorGridContainer");
+    if (!container) return;
+
+    if (!sensors || sensors.length === 0) {
+      container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:20px; color:var(--text-muted);">No IoT sensors registered in section store.</div>`;
+      return;
+    }
+
+    container.innerHTML = sensors.map(s => {
+      let icon = "fa-microchip";
+      let valDisplay = "--";
+      let statusColor = "var(--accent-green)";
+
+      if (s.sensor_type === "AXLE_COUNTER") {
+        icon = "fa-arrows-split-up-and-left";
+        const bal = s.telemetry?.balance ?? s.telemetry?.axle_count ?? 0;
+        valDisplay = `Axle Balance: <strong>${bal}</strong>`;
+      } else if (s.sensor_type === "RAIL_TEMPERATURE") {
+        icon = "fa-temperature-high";
+        const temp = s.telemetry?.temperature_celsius ?? "--";
+        valDisplay = `${temp} °C`;
+        if (typeof temp === "number" && temp >= 65) statusColor = "var(--accent-red)";
+        else if (typeof temp === "number" && temp >= 55) statusColor = "var(--accent-amber)";
+      } else if (s.sensor_type === "BRIDGE_WATER_LEVEL") {
+        icon = "fa-water";
+        const wtr = s.telemetry?.water_level_meters ?? "--";
+        valDisplay = `Pier Level: ${wtr}m`;
+        if (typeof wtr === "number" && wtr >= 4.5) statusColor = "var(--accent-red)";
+      } else if (s.sensor_type === "TRACK_GEOMETRY") {
+        icon = "fa-ruler-combined";
+        const vib = s.telemetry?.vibration_g ?? 0.15;
+        valDisplay = `Vibration: ${vib}g`;
+      }
+
+      return `
+        <div class="sensor-tile">
+          <div class="sensor-tile-header">
+            <span class="sensor-tile-title"><i class="fa-solid ${icon}"></i> ${escapeHtml(s.sensor_id)}</span>
+            <span class="badge-label ${s.status === 'ONLINE' ? 'badge-green' : 'badge-red'}" style="font-size:9px;">${escapeHtml(s.status)}</span>
+          </div>
+          <div class="sensor-tile-body">
+            <div style="font-size:10.5px; color:var(--text-muted); text-transform:uppercase;">${escapeHtml(s.sensor_type)} • ${escapeHtml(s.section_id)}</div>
+            <div class="sensor-value-highlight" style="color:${statusColor};">${valDisplay}</div>
+            <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Battery: ${s.battery_pct ? s.battery_pct + '%' : 'Mains'}</span>
+              <span>Updated: ${new Date(s.last_seen).toLocaleTimeString()}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+  } catch (err) {
+    console.warn("Failed to refresh sensors:", err);
+  }
+}
+
+async function refreshEvents() {
+  try {
+    const sev = document.getElementById("eventSeverityFilter")?.value || "ALL";
+    let url = "/api/v1/events?limit=30";
+    if (sev !== "ALL") url += `&severity=${sev}`;
+
+    const res = await fetch(url);
+    if (!res.ok) return;
+    const events = await res.json();
+    lastEventsCache = events;
+    renderEventsTable(events);
+  } catch (err) {
+    console.warn("Failed to refresh events:", err);
+  }
+}
+
+function filterEventsTable(sev) {
+  if (sev === "ALL") {
+    renderEventsTable(lastEventsCache);
+  } else {
+    renderEventsTable(lastEventsCache.filter(e => e.severity === sev));
+  }
+}
+
+function renderEventsTable(events) {
+  const tbody = document.getElementById("eventsTbody");
+  if (!tbody) return;
+
+  if (!events || events.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:16px; color:var(--text-muted);">No events logged in the selected window.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = events.map(e => {
+    let sevBadge = "badge-gray";
+    if (e.severity === "CRITICAL" || e.severity === "EMERGENCY") sevBadge = "badge-red";
+    else if (e.severity === "WARNING") sevBadge = "badge-amber";
+    else if (e.severity === "INFO") sevBadge = "badge-green";
+
+    return `
+      <tr>
+        <td style="font-size:11px; font-family:monospace; color:var(--text-secondary);">${new Date(e.timestamp).toLocaleTimeString()}</td>
+        <td><span class="badge-label ${sevBadge}">${escapeHtml(e.severity)}</span></td>
+        <td><span class="badge-label badge-blue">${escapeHtml(e.source)}</span></td>
+        <td><strong>${escapeHtml(e.event_type)}</strong></td>
+        <td>${escapeHtml(e.entity_id || e.section_id || "--")}</td>
+        <td style="font-size:11.5px; color:var(--text-primary);">${escapeHtml(e.description || e.title || "")}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+async function refreshConflicts() {
+  try {
+    const res = await fetch("/api/v1/conflicts");
+    if (!res.ok) return;
+    const conflicts = await res.json();
+    const tbody = document.getElementById("conflictsTbody");
+    if (!tbody) return;
+
+    if (!conflicts || conflicts.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:var(--text-muted);">No active corridor conflicts detected. Normal operations.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = conflicts.map(c => {
+      const trainsStr = (c.affected_trains || c.affected_train_ids || []).join(", ") || "None";
+      const blocksStr = (c.affected_blocks || c.affected_block_ids || []).join(", ") || c.section_id;
+
+      return `
+        <tr>
+          <td><strong>${escapeHtml(c.conflict_id)}</strong></td>
+          <td><span class="badge-label badge-red">${escapeHtml(c.conflict_type)}</span></td>
+          <td><span class="badge-label ${c.severity === 'CRITICAL' ? 'badge-red' : 'badge-amber'}">${escapeHtml(c.severity)}</span></td>
+          <td><span class="badge-label badge-blue">${escapeHtml(c.section_id)}</span></td>
+          <td>${escapeHtml(trainsStr)} (${escapeHtml(blocksStr)})</td>
+          <td style="font-size:11.5px;">${escapeHtml(c.description)}</td>
+          <td style="font-size:11px; color:var(--text-secondary);">${new Date(c.detected_at).toLocaleTimeString()}</td>
+          <td>
+            <button class="btn btn-secondary btn-xs" onclick="resolveConflict('${escapeHtml(c.conflict_id)}')"><i class="fa-solid fa-check"></i> Clear</button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+  } catch (err) {
+    console.warn("Failed to refresh conflicts:", err);
+  }
+}
+
+async function resolveConflict(conflictId) {
+  try {
+    await fetch(`/api/v1/conflicts/${conflictId}/resolve`, { method: "POST" });
+    refreshConflicts();
+  } catch (e) {
+    console.error("Failed to resolve conflict:", e);
+  }
+}
+
+function openDisturbanceModal() {
+  openModal("simulateDisturbanceModal");
+}
+
+function handleDisturbanceTypeChange(val) {
+  const label = document.getElementById("simValueLabel");
+  const input = document.getElementById("simValueInput");
+  const targetGroup = document.getElementById("simTargetGroup");
+
+  if (val === "TRAIN_DELAY") {
+    label.innerText = "Delay Duration (Minutes):";
+    input.value = "15";
+    targetGroup.style.display = "block";
+  } else if (val === "SPEED_RESTRICTION") {
+    label.innerText = "Imposed Speed Limit (km/h):";
+    input.value = "30";
+    targetGroup.style.display = "none";
+  }
+}
+
+async function submitSimulationDisturbance() {
+  const dtype = document.getElementById("simDisturbanceType").value;
+  const target = document.getElementById("simTargetSelect").value;
+  let val = parseFloat(document.getElementById("simValueInput").value);
+
+  if (dtype === "TRAIN_DELAY") {
+    val = val * 60;
+  }
+
+  showLoading("Injecting Simulation Disturbance", `Applying ${dtype} to corridor model...`);
+  try {
+    const res = await fetch("/api/v1/simulation/inject-disturbance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        disturbance_type: dtype,
+        target_id: target,
+        value: val
+      })
+    });
+    if (!res.ok) throw new Error("Disturbance failed");
+    
+    closeModal("simulateDisturbanceModal");
+    hideLoading();
+
+    await refreshConflicts();
+    await refreshEvents();
+    
+    if (confirm("Disturbance injected successfully. Do you want to run CP-SAT Re-Optimization now to generate a Candidate Plan?")) {
+      triggerOptimize();
+    }
+  } catch (e) {
+    hideLoading();
+    alert(`Failed to inject disturbance: ${e.message}`);
+  }
 }

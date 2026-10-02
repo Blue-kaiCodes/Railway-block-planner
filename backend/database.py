@@ -2,7 +2,7 @@ import os
 import json
 import copy
 from typing import Dict, Any, List, Optional
-from threading import Lock
+from threading import RLock
 from backend.synthetic_data import get_initial_dataset
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
@@ -11,7 +11,7 @@ SNAPSHOT_FILE = os.path.join(DATA_DIR, "snapshot.json")
 
 class Database:
     def __init__(self):
-        self._lock = Lock()
+        self._lock = RLock()
         self._data: Dict[str, Any] = {}
         self._snapshot_before_emergency: Optional[Dict[str, Any]] = None
         self._ensure_storage()
@@ -171,6 +171,13 @@ class Database:
     def get_blocks(self) -> List[Dict[str, Any]]:
         with self._lock:
             return copy.deepcopy(self._data.get("block_windows", []))
+
+    def get_block_windows(self) -> List[Dict[str, Any]]:
+        return self.get_blocks()
+
+    def get_resources(self) -> List[Dict[str, Any]]:
+        with self._lock:
+            return copy.deepcopy(self._data.get("resources", []))
 
     def add_block(self, block: Dict[str, Any]) -> Dict[str, Any]:
         with self._lock:
